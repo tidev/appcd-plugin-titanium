@@ -1,0 +1,34 @@
+# v1.4.0
+
+ * Moved SDK install related functions to [titaniumlib](https://www.npmjs.com/package/titaniumlib)
+ * Upgraded to Gulp 4.
+ * Update dependencies
+
+# v1.3.0 (Oct 25, 2018)
+
+ * Moved to `@appcd` scope
+ * Update dependencies
+ * Add Daemon 2.x support
+
+# v1.2.0 (Apr 11, 2018)
+
+ * Added service endpoints for listing releases CI branches, CI builds, installing SDKs, and
+   uninstalling SDKs.
+   [(DAEMON-247)](https://jira.appcelerator.org/browse/DAEMON-247)
+ * Updated npm dependencies.
+ * Split the info service 'sdk' and 'module' detection into separate endpoints.
+   [(DAEMON-246)](https://jira.appcelerator.org/browse/DAEMON-246)
+ * Updated npm dependencies.
+
+# v1.1.0
+
+ * Skipped release.
+
+# v1.0.1 (Jan 10, 2018)
+
+ * Fixed structure of detected modules.
+ * Updated npm dependencies.
+
+# v1.0.0 (Jan 9, 2018)
+
+ * Initial release.
