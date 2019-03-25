@@ -16,12 +16,13 @@
     "test": "gulp test"
   },
   "dependencies": {
+    "cli-kit": "^0.7.0",
     "fs-extra": "^7.0.1",
     "gawk": "^4.6.2",
     "sort-object-keys": "^1.1.2",
-    "source-map-support": "^0.5.10",
-    "titaniumlib": "^1.1.0",
-    "tmp": "^0.0.33",
+    "source-map-support": "^0.5.11",
+    "titaniumlib": "^1.1.1",
+    "tmp": "^0.1.0",
     "yauzl": "^2.10.0"
   },
   "devDependencies": {
