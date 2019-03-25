@@ -29,7 +29,7 @@
     "appcd-gulp": "^2.0.1",
     "gulp": "^4.0.0"
   },
-  "homepage": "https://github.com/appcelerator/appc-daemon-plugins/tree/master/packages/appcd-plugin-titanium-sdk",
+  "homepage": "https://github.com/appcelerator/appc-daemon-plugins/tree/master/packages/plugin-titanium",
   "bugs": "https://github.com/appcelerator/appc-daemon-plugins/issues",
   "repository": "https://github.com/appcelerator/appc-daemon-plugins",
   "appcd": {

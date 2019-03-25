@@ -1,8 +1,23 @@
 # v1.4.0
 
+ * Renamed package from `appcd-plugin-titanium-sdk` to `@appcd/plugin-titanium`.
  * Moved SDK install related functions to [titaniumlib](https://www.npmjs.com/package/titaniumlib)
  * Upgraded to Gulp 4.
  * Update dependencies
+ * Added `CLIService` for handling Titanium CLI requests.
+ * Wired up real-time config changes.
+ * Removed unused `BuildService`.
+ * Added alias for `/module` to `/modules`.
+ * Module list results now returns `android`, `commonjs`, `ios`, and `windows` properties
+   regardless if any modules are found.
+ * Module list properly recursively scans module paths where it used to stop at the version
+   directory instead of descending one additional level.
+ * Moved `/modules/list/locations` to `/modules/locations`.
+ * Removed `/sdk/list/installed` endpoint.
+ * Moved `/sdk/list/ci-branches` to `/sdk/branches`.
+ * Moved `/sdk/list/ci-builds` to `/sdk/builds`.
+ * Moved `/sdk/list/locations` to `/sdk/locations`.
+ * Moved `/sdk/list/releases` to `/sdk/releases`.
 
 # v1.3.0 (Oct 25, 2018)
 
