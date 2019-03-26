@@ -1,3 +1,4 @@
+import CLI from 'cli-kit';
 import Dispatcher from 'appcd-dispatcher';
 
 /**
@@ -14,16 +15,25 @@ export default class CLIService extends Dispatcher {
 	async activate(cfg) {
 		this.config = cfg;
 
-		this.register('/', ctx => {
-			// const { argv } = ctx.request.data;
-			return 'IT WORKS!!!!';
+		this.cli = new CLI({
+			commands: {
+				new:     { desc: 'Create a new project' },
+				build:   { desc: 'Builds a project' },
+				info:    { desc: 'Display development environment information' },
+				project: { desc: 'Manage project settings.' }
+			}
 		});
 
-		this.register('/schema', () => {
+		this.register('/', async ctx => {
+			const { argv } = ctx.request.data;
+			const results = await this.cli.exec(argv);
 			return {
-				schemas: 'rock'
+				argv: results.argv,
+				_: results._
 			};
 		});
+
+		this.register('/schema', () => this.cli.schema);
 	}
 
 	/**
