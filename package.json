@@ -16,7 +16,7 @@
     "test": "gulp test"
   },
   "dependencies": {
-    "cli-kit": "^0.7.0",
+    "cli-kit": "^0.7.2",
     "fs-extra": "^7.0.1",
     "gawk": "^4.6.2",
     "sort-object-keys": "^1.1.2",
