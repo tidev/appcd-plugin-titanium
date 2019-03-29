@@ -1,4 +1,4 @@
-# v1.4.0
+# v1.4.0 (Mar 29, 2019)
 
  * Renamed package from `appcd-plugin-titanium-sdk` to `@appcd/plugin-titanium`.
  * Moved SDK install related functions to [titaniumlib](https://www.npmjs.com/package/titaniumlib)

@@ -16,17 +16,17 @@
     "test": "gulp test"
   },
   "dependencies": {
-    "cli-kit": "^0.7.2",
+    "cli-kit": "^0.7.5",
     "fs-extra": "^7.0.1",
     "gawk": "^4.6.2",
     "sort-object-keys": "^1.1.2",
     "source-map-support": "^0.5.11",
-    "titaniumlib": "^1.1.1",
+    "titaniumlib": "^1.2.0",
     "tmp": "^0.1.0",
     "yauzl": "^2.10.0"
   },
   "devDependencies": {
-    "appcd-gulp": "^2.0.1",
+    "appcd-gulp": "^2.1.0",
     "gulp": "^4.0.0"
   },
   "homepage": "https://github.com/appcelerator/appc-daemon-plugins/tree/master/packages/plugin-titanium",
