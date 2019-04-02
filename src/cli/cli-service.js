@@ -1,5 +1,23 @@
-import CLI from 'cli-kit';
+import CLI, { Terminal } from 'cli-kit';
 import Dispatcher from 'appcd-dispatcher';
+import fs from 'fs';
+import path from 'path';
+
+import { Transform } from 'stream';
+
+class OutputTransformer extends Transform {
+	constructor(type) {
+		super({ objectMode: true });
+		this.type = type;
+	}
+
+	_transform(chunk, encoding, callback) {
+		callback(null, {
+			type: this.type,
+			message: chunk
+		});
+	}
+}
 
 /**
  * Defines a service endpoint for defining, processing, and dispatching Titanium CLI commands.
@@ -8,29 +26,43 @@ export default class CLIService extends Dispatcher {
 	/**
 	 * Registers all of the endpoints.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
+	 * @param {Object} config - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
-		this.config = cfg;
+	async activate(config) {
+		this.config = config;
+
+		const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json')));
 
 		this.cli = new CLI({
-			commands: {
-				new:     { desc: 'Create a new project' },
-				build:   { desc: 'Builds a project' },
-				info:    { desc: 'Display development environment information' },
-				project: { desc: 'Manage project settings.' }
-			}
+			banner: `Titanium CLI, version ${version}\nCopyright (c) 2012-2019, Axway, Inc. All Rights Reserved.`,
+			commands: `${__dirname}/commands`,
+			help: true,
+			helpExitCode: 2,
+			version
 		});
 
-		this.register('/', async ctx => {
-			const { argv } = ctx.request.data;
-			const results = await this.cli.exec(argv);
-			return {
-				argv: results.argv,
-				_: results._
-			};
+		this.register('/', async ({ headers, request, response }) => {
+			const stdout = new OutputTransformer('stdout');
+			const stderr = new OutputTransformer('stderr');
+
+			stdout.pipe(response);
+			stderr.pipe(response);
+
+			await this.cli.exec(request.data.argv, {
+				data: {
+					config,
+					userAgent: headers && headers['user-agent'] || null,
+					version
+				},
+				terminal: new Terminal({
+					stdout,
+					stderr
+				})
+			});
+
+			response.end();
 		});
 
 		this.register('/schema', () => this.cli.schema);
