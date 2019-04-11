@@ -1,7 +1,7 @@
 import DetectEngine from 'appcd-detect';
 import gawk from 'gawk';
 
-import { compare } from '../version';
+import { compare } from '../lib/version';
 import { DataServiceDispatcher } from 'appcd-dispatcher';
 import { debounce, get } from 'appcd-util';
 import { options, sdk } from 'titaniumlib';

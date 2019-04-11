@@ -1,3 +1,12 @@
+# v1.5.0
+
+ * Updated config to remove redundant `titanium` namespace.
+ * Fixed version in banner.
+ * Fixed version returned by `--version`.
+ * Added appcd debug logger and plugin version to exec() data payload.
+ * Added the `config` command implementation.
+ * Updated npm dependencies.
+
 # v1.4.0 (Mar 29, 2019)
 
  * Renamed package from `appcd-plugin-titanium-sdk` to `@appcd/plugin-titanium`.

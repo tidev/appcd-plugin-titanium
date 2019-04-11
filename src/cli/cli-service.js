@@ -1,20 +1,40 @@
-import CLI, { Terminal } from 'cli-kit';
+import CLI, { snooplogg, Terminal } from 'cli-kit';
 import Dispatcher from 'appcd-dispatcher';
 import fs from 'fs';
 import path from 'path';
 
 import { Transform } from 'stream';
+import { parseVersion } from '../lib/util';
 
+const { highlight } = snooplogg.styles;
+
+/**
+ * A stream transform that wraps stdout/stderr output in an object.
+ */
 class OutputTransformer extends Transform {
+	/**
+	 * Initializes the output transformer in object mode.
+	 *
+	 * @param {String} type - The output stream name such as "stdout" or "stderr".
+	 * @access public
+	 */
 	constructor(type) {
 		super({ objectMode: true });
 		this.type = type;
 	}
 
-	_transform(chunk, encoding, callback) {
+	/**
+	 * Wraps a message into an stdio envelope for the Titanium CLI bridge.
+	 *
+	 * @param {String} message - The message. It is always a string.
+	 * @param {String} encoding - The message encoding. This is not used.
+	 * @param {Function} callback - A function to call with the transformed message.
+	 * @access private
+	 */
+	_transform(message, encoding, callback) {
 		callback(null, {
 			type: this.type,
-			message: chunk
+			message
 		});
 	}
 }
@@ -33,14 +53,18 @@ export default class CLIService extends Dispatcher {
 	async activate(config) {
 		this.config = config;
 
-		const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json')));
+		const pluginVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'))).version;
 
 		this.cli = new CLI({
-			banner: `Titanium CLI, version ${version}\nCopyright (c) 2012-2019, Axway, Inc. All Rights Reserved.`,
+			banner({ data }) {
+				return `${highlight('Titanium CLI')}, version ${parseVersion(data.userAgent)} (plugin ${pluginVersion})\nCopyright (c) 2012-2019, Axway, Inc. All Rights Reserved.`;
+			},
 			commands: `${__dirname}/commands`,
 			help: true,
 			helpExitCode: 2,
-			version
+			version({ data }) {
+				return parseVersion(data.userAgent);
+			}
 		});
 
 		this.register('/', async ({ headers, request, response }) => {
@@ -53,8 +77,9 @@ export default class CLIService extends Dispatcher {
 			await this.cli.exec(request.data.argv, {
 				data: {
 					config,
+					debug: console,
 					userAgent: headers && headers['user-agent'] || null,
-					version
+					pluginVersion
 				},
 				terminal: new Terminal({
 					stdout,
