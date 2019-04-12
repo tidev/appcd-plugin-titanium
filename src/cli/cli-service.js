@@ -90,7 +90,11 @@ export default class CLIService extends Dispatcher {
 			response.end();
 		});
 
-		this.register('/schema', () => this.cli.schema);
+		this.register('/schema', ({ headers }) => this.cli.schema({
+			data: {
+				userAgent: headers && headers['user-agent'] || null
+			}
+		}));
 	}
 
 	/**
