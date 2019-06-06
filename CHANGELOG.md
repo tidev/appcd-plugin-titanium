@@ -1,4 +1,4 @@
-# v1.5.0
+# v1.5.0 (Jun 6, 2019)
 
  * Updated config to remove redundant `titanium` namespace.
  * Fixed version in banner.
@@ -6,6 +6,7 @@
  * Added appcd debug logger and plugin version to exec() data payload.
  * Added the `config` command implementation.
  * Updated npm dependencies.
+ * chore: Switched `prepare` script to `prepack`.
 
 # v1.4.0 (Mar 29, 2019)
 

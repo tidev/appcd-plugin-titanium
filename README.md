@@ -10,9 +10,8 @@ Returns a list of all directories where Titanium SDKs may be installed. The firs
 default location where new Titanium SDKs are installed to.
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/list/locations', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/locations');
+console.log(response);
 ```
 
 ```sh
@@ -35,9 +34,8 @@ subscriptions.
 > `/titanium-sdk/latest/sdk/list/installed`.
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/list/installed', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/installed');
+console.log(response);
 ```
 
 ```sh
@@ -98,9 +96,8 @@ $ appcd exec /titanium-sdk/latest/sdk/list/installed --subscribe
 Returns a list of all available Titanium SDK releases.
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/list/releases', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/releases');
+console.log(response);
 ```
 
 ```sh
@@ -134,9 +131,8 @@ $ appcd exec /titanium-sdk/latest/sdk/list/releases
 Returns a list of CI branches and which one is the default.
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/list/ci-branches', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-branches');
+console.log(response);
 ```
 
 ```sh
@@ -174,17 +170,14 @@ $ appcd exec /titanium-sdk/latest/sdk/list/ci-branches
 Returns a hash of CI builds for the `master` branch or a specific branch.
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/list/ci-builds', ctx => {
-	console.log(ctx.response);
-});
+let { response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-builds');
+console.log(response);
 
-appcd.call('/titanium-sdk/latest/sdk/list/ci-builds/master', ctx => {
-	console.log(ctx.response);
-});
+({ response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-builds/master'));
+console.log(response);
 
-appcd.call('/titanium-sdk/latest/sdk/list/ci-builds/7_1_X', ctx => {
-	console.log(ctx.response);
-});
+({ response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-builds/7_1_X'));
+console.log(response);
 ```
 
 ```sh
@@ -216,9 +209,8 @@ $ appcd exec /titanium-sdk/latest/sdk/list/ci-branches/7_1_X
 Installing the latest GA release:
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/install', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/install');
+console.log(response);
 ```
 
 ```sh
@@ -315,21 +307,18 @@ $ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "file:///path/to/some/tit
 Uninstalls a specific Titanium SDK.
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/uninstall/7.0.0.GA', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/uninstall/7.0.0.GA');
+console.log(response);
 ```
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/uninstall', { uri: '7.0.0.GA' }, ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/uninstall', { uri: '7.0.0.GA' });
+console.log(response);
 ```
 
 ```js
-appcd.call('/titanium-sdk/latest/sdk/uninstall', { uri: '/path/to/7.0.0.GA' }, ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/sdk/uninstall', { uri: '/path/to/7.0.0.GA' });
+console.log(response);
 ```
 
 ```sh
@@ -352,9 +341,8 @@ Returns a list of all directories where Titanium modules may be installed. The f
 default location.
 
 ```js
-appcd.call('/titanium-sdk/latest/modules/list/locations', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/modules/list/locations');
+console.log(response);
 ```
 
 ```sh
@@ -377,9 +365,8 @@ supports subscriptions.
 > `/titanium-sdk/latest/modules/list/installed`.
 
 ```js
-appcd.call('/titanium-sdk/latest/modules/list/installed', ctx => {
-	console.log(ctx.response);
-});
+const { response } = await appcd.call('/titanium-sdk/latest/modules/list/installed');
+console.log(response);
 ```
 
 ```sh
