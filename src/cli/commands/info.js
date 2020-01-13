@@ -18,8 +18,6 @@ const types = {
 
 export default {
 	async action({ console, argv }) {
-		console.log(argv);
-
 		const selectedTypes = argv.types === 'all' ? 'all' : argv.types.split(',');
 		const results = {};
 
@@ -51,11 +49,11 @@ export default {
 		'--json': 'output info as JSON',
 
 		// for backwards compatibility
-		'-o, --output <format>': {
+		'-o, --output [format]': {
 			hidden: true
 		},
 
-		'-t, --types <types>': {
+		'-t, --types [types]': {
 			default: 'all',
 			desc: 'information types to display; you may select one or more',
 			values: [ 'all' ].concat(Object.keys(types))

@@ -31,10 +31,8 @@ export default class ModuleListService extends DataServiceDispatcher {
 		this.detectEngine = new DetectEngine({
 			checkDir(dir) {
 				try {
-					console.log(dir);
 					return new modules.TitaniumModule(dir);
 				} catch (e) {
-					console.log(e);
 					// 'dir' is not a Titanium module
 				}
 			},
@@ -43,13 +41,18 @@ export default class ModuleListService extends DataServiceDispatcher {
 			name:                'titanium-sdk:modules',
 			paths:               modules.getPaths(),
 			recursive:           true,
-			recursiveWatchDepth: 0,
+			recursiveWatchDepth: 3, // platform -> module_name -> version
 			redetect:            true,
 			watch:               true
 		});
 
 		this.detectEngine.on('results', results => {
-			let modules = {};
+			let modules = {
+				android:  {},
+				commonjs: {},
+				ios:      {},
+				windows:  {}
+			};
 
 			// convert the list of modules into buckets by platform and version
 			for (const module of results) {
