@@ -1,4 +1,4 @@
-# v1.7.0
+# v1.7.0 (Jan 13, 2020)
 
  * feat(sdk): Added support for progress tracking during SDK install.
  * fix(sdk): Fixed incorrect `uninstall()` argument.
