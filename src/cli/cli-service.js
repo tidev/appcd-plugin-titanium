@@ -74,7 +74,10 @@ export default class CLIService extends Dispatcher {
 			stdout.pipe(response);
 			stderr.pipe(response);
 
-			await this.cli.exec(request.data.argv, {
+			const argv = request.data && request.data.argv || [];
+			console.log(`Executing CLI: ${argv}`);
+
+			await this.cli.exec(argv, {
 				data: {
 					config,
 					debug: console,
@@ -98,7 +101,7 @@ export default class CLIService extends Dispatcher {
 	}
 
 	/**
-	 * ?
+	 * Perform any necessary cleanup.
 	 *
 	 * @returns {Promise}
 	 * @access public

@@ -1,3 +1,18 @@
+# v1.7.0
+
+ * feat(sdk): Added support for progress tracking during SDK install.
+ * fix(sdk): Fixed incorrect `uninstall()` argument.
+ * fix(cli): Fixed `info` command to not require `--output` and `--types`.
+ * fix(util): Fixed user agent parsing to allow null user agent strings.
+ * fix(module): Fixed filesystem watcher depth for modules directory.
+ * chore(module): Removed debug logging.
+ * fix(module): Initialize module type buckets so bucket exists regardless if any modules of that
+   type are found.
+ * chore: Switched to new `appcd.apiVersion`.
+   [(DAEMON-309)](https://jira.appcelerator.org/browse/DAEMON-309)
+ * chore: Updated links in `package.json`.
+ * chore: Updated dependencies.
+
 # v1.6.0 (Aug 15, 2019)
 
  * chore: Added Appc Daemon v3 to list of compatible appcd versions.

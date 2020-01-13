@@ -1,7 +1,7 @@
 import Dispatcher from 'appcd-dispatcher';
-import Response, { AppcdError, codes } from 'appcd-response';
 import SDKListService from './sdk-list-service';
 
+import { AppcdError, codes } from 'appcd-response';
 import { expandPath } from 'appcd-path';
 import { sdk } from 'titaniumlib';
 
@@ -52,17 +52,34 @@ export default class SDKService extends Dispatcher {
 	 * @returns {Promise}
 	 * @access private
 	 */
-	async install(ctx) {
+	install(ctx) {
 		const { data, params } = ctx.request;
 
-		await sdk.install({
+		sdk.install({
 			downloadDir: this.config.home && expandPath(this.config.home, 'downloads'),
 			keep:        data.keep,
+			onProgress(evt) {
+				if (data.progress) {
+					ctx.response.write(evt);
+				}
+			},
 			overwrite:   data.overwrite,
 			uri:         data.uri || params.name
+		}).then(() => {
+			ctx.response.write({ fin: true, message: 'Installed successfully' });
+			ctx.response.end();
+		}, err => {
+			try {
+				if (err.code === 'ENOTFOUND') {
+					ctx.response.write(new AppcdError(codes.NOT_FOUND, err.message));
+				} else {
+					ctx.response.write(new AppcdError(err));
+				}
+				ctx.response.end();
+			} catch (e) {
+				// stream is probably closed
+			}
 		});
-
-		ctx.response = new Response(codes.OK, 'Installed successfully');
 	}
 
 	/**
@@ -81,13 +98,9 @@ export default class SDKService extends Dispatcher {
 		}
 
 		try {
-			return await sdk.uninstall({ uri });
-		} catch (e) {
-			if (e.code === 'ENOTFOUND') {
-				throw new AppcdError(codes.NOT_FOUND, e);
-			} else {
-				throw e;
-			}
+			return await sdk.uninstall(uri);
+		} catch (err) {
+			throw err.code === 'ENOTFOUND' ? new AppcdError(codes.NOT_FOUND, err) : err;
 		}
 	}
 }
