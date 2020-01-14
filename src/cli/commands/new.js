@@ -2,5 +2,6 @@ export default {
 	action({ console }) {
 		console.log('Hi from new');
 	},
-	desc: 'Create a new project'
+	aliases: '!create',
+	desc: 'Create a new project.'
 };

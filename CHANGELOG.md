@@ -1,6 +1,16 @@
+# v1.8.0 (Jan 14, 2020)
+
+ * feat: Formatted `info` command output.
+ * feat: Added `sdk` command implementation.
+ * chore: Updated copyright in banner.
+ * chore: Verbiage cleanup.
+ * chore: Updated dependencies.
+
 # v1.7.0 (Jan 13, 2020)
 
  * feat(sdk): Added support for progress tracking during SDK install.
+ * feat: Wired up live configuration changes.
+   [(DAEMON-198)](https://jira.appcelerator.org/browse/DAEMON-198)
  * fix(sdk): Fixed incorrect `uninstall()` argument.
  * fix(cli): Fixed `info` command to not require `--output` and `--types`.
  * fix(util): Fixed user agent parsing to allow null user agent strings.

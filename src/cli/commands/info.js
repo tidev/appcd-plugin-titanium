@@ -7,56 +7,54 @@ import titanium from '../info/titanium';
 import windows from '../info/windows';
 
 const types = {
-	os,
-	titanium,
 	android,
 	genymotion,
 	ios,
 	jdk,
+	os,
+	titanium,
 	windows
 };
 
 export default {
-	async action({ console, argv }) {
-		const selectedTypes = argv.types === 'all' ? 'all' : argv.types.split(',');
+	async action({ console, argv, data }) {
+		const selectedTypes = new Set(argv.types.toLowerCase().split(','));
 		const results = {};
 
 		// load the data
 		await Promise.all(
 			Object
-				.entries(types)
-				.filter(([ type ]) => selectedTypes === 'all' || selectedTypes.includes(type))
-				.map(async ([ type, obj ]) => {
-					try {
-						results[type] = await obj.fetch(argv);
-					} catch (err) {
-						results[type] = err;
+				.keys(types)
+				.filter(type => typeof types[type].fetch === 'function' && (selectedTypes.has('all') || selectedTypes.has(type)))
+				.sort()
+				.map(async type => {
+					results[type] = null;
+					if (typeof types[type].fetch === 'function') {
+						try {
+							results[type] = await types[type].fetch(data);
+						} catch (err) {
+							results[type] = { error: err.stack };
+						}
 					}
 				})
 		);
 
-		if (argv.json) {
+		if (argv.json || argv.output === 'json') {
 			console.log(JSON.stringify(results, null, '  '));
 		} else {
-			// render
 			for (const type of Object.keys(results)) {
-				types[type].render(console, results[type]);
+				await types[type].render(console, results[type]);
 			}
 		}
 	},
-	desc: 'Display development environment information',
+	desc: 'Display development environment information.',
 	options: {
 		'--json': 'output info as JSON',
-
-		// for backwards compatibility
-		'-o, --output [format]': {
-			hidden: true
-		},
-
+		'-o, --output [forma]>': { hidden: true },
 		'-t, --types [types]': {
 			default: 'all',
 			desc: 'information types to display; you may select one or more',
-			values: [ 'all' ].concat(Object.keys(types))
+			values: [ 'all', ...Object.keys(types).filter(type => typeof types[type].fetch === 'function') ]
 		}
 	}
 };
