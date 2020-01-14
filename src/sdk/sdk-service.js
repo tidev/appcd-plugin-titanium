@@ -49,7 +49,6 @@ export default class SDKService extends Dispatcher {
 	 * Install SDK service handler.
 	 *
 	 * @param {Context} ctx - A request context.
-	 * @returns {Promise}
 	 * @access private
 	 */
 	install(ctx) {
@@ -65,8 +64,8 @@ export default class SDKService extends Dispatcher {
 			},
 			overwrite:   data.overwrite,
 			uri:         data.uri || params.name
-		}).then(() => {
-			ctx.response.write({ fin: true, message: 'Installed successfully' });
+		}).then(tisdk => {
+			ctx.response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
 			ctx.response.end();
 		}, err => {
 			try {
@@ -91,7 +90,7 @@ export default class SDKService extends Dispatcher {
 	 */
 	async uninstall(ctx) {
 		const { data, params } = ctx.request;
-		const uri              = (data.uri || params.name || '').trim();
+		const uri = (data.uri || params.name || '').trim();
 
 		if (!uri) {
 			throw new AppcdError(codes.BAD_REQUEST, 'Missing Titanium SDK name or path');

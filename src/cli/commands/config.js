@@ -1,5 +1,3 @@
-// import { expandPath } from 'appcd-path';
-
 const readActions = {
 	get:     'get',
 	ls:      'get',
@@ -37,7 +35,7 @@ export default {
 		{ name: 'key', desc: '' },
 		{ name: 'value', desc: '' }
 	],
-	desc: 'Get and set Titanium config settings',
+	desc: 'Get and set Titanium config settings.',
 	options: {
 		'--json': 'outputs the config as JSON'
 	},

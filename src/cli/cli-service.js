@@ -57,7 +57,7 @@ export default class CLIService extends Dispatcher {
 
 		this.cli = new CLI({
 			banner({ data }) {
-				return `${highlight('Titanium CLI')}, version ${parseVersion(data.userAgent)} (plugin ${pluginVersion})\nCopyright (c) 2012-2019, Axway, Inc. All Rights Reserved.`;
+				return `${highlight('Titanium CLI')}, version ${parseVersion(data.userAgent)} (plugin ${pluginVersion})\nCopyright (c) 2012-2020, Axway, Inc. All Rights Reserved.`;
 			},
 			commands: `${__dirname}/commands`,
 			help: true,
@@ -67,7 +67,7 @@ export default class CLIService extends Dispatcher {
 			}
 		});
 
-		this.register('/', async ({ headers, request, response }) => {
+		this.register('/', ({ headers, request, response }) => {
 			const stdout = new OutputTransformer('stdout');
 			const stderr = new OutputTransformer('stderr');
 
@@ -77,7 +77,7 @@ export default class CLIService extends Dispatcher {
 			const argv = request.data && request.data.argv || [];
 			console.log(`Executing CLI: ${argv}`);
 
-			await this.cli.exec(argv, {
+			this.cli.exec(argv, {
 				data: {
 					config,
 					debug: console,
@@ -88,9 +88,17 @@ export default class CLIService extends Dispatcher {
 					stdout,
 					stderr
 				})
+			}).catch(err => {
+				stderr.write(JSON.stringify({
+					exitCode: err.exitCode || 1,
+					error: err.toString(),
+					stack: err.stack,
+					type: 'error'
+				}, null, 2));
+			}).finally(() => {
+				stdout.end();
+				stderr.end();
 			});
-
-			response.end();
 		});
 
 		this.register('/schema', ({ headers }) => this.cli.schema({
