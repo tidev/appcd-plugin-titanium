@@ -1,45 +1,46 @@
-# @appcd/plugin-titanium-sdk
+# @appcd/plugin-titanium
 
 Titanium SDK services for the Appc Daemon.
 
+## Services
+
+ * [SDKs](#SDKs)
+   - [`/sdk/list/installed`](#sdklistinstalled)
+   - [`/sdk/list/locations`](#sdklistlocations)
+   - [`/sdk/list/releases`](#sdklistreleases)
+   - [`/sdk/list/branches`](#sdklistbranches)
+   - [`/sdk/list/builds/:branch?`](#sdklistbuildsbranch)
+   - [`/sdk/install/:name?`](#sdkinstallname)
+   - [`/sdk/uninstall/:name?`](#sdkuninstallname)
+ * [Modules](#Modules)
+   - [`/modules/list/locations`](#moduleslistlocations)
+   - [`/modules/list/installed`](#moduleslistinstalled)
+ * [CLI](#CLI)
+   - [`/cli`](#cli)
+   - [`/cli/schema`](#clischema)
+
 ## SDKs
 
-### Listing SDK Install Locations
+The `/sdk` service provides Titanium SDK information and management.
 
-Returns a list of all directories where Titanium SDKs may be installed. The first path is the
-default location where new Titanium SDKs are installed to.
-
-```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/locations');
-console.log(response);
-```
-
-```sh
-$ appcd exec /titanium-sdk/latest/sdk/list/locations
-{
-  "status": 200,
-  "message": [
-    "/Users/jeff/Library/Application Support/Titanium/mobilesdk/osx",
-    "/Library/Application Support/Titanium/mobilesdk/osx"
-  ]
-}
-```
-
-### Listing Installed Titanium SDKs
+### `/sdk/list/installed`
 
 Returns a list of installed Titanium SDKs across all installation locations. This endpoint supports
 subscriptions.
 
-> :bulb: Both `/titanium-sdk/latest/sdk` and `/titanium-sdk/latest/sdk/list` forward to
-> `/titanium-sdk/latest/sdk/list/installed`.
+> :bulb: Note: `/sdk` and `/sdk/list` forward to `/sdk/list/installed`.
+
+#### API Usage
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/installed');
+const { response } = await appcd.call('/titanium/latest/sdk/list/installed');
 console.log(response);
 ```
 
+#### CLI Usage
+
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/list/installed
+$ appcd exec /titanium/latest/sdk/list/installed
 {
   "status": 200,
   "message": [
@@ -88,20 +89,24 @@ $ appcd exec /titanium-sdk/latest/sdk/list/installed
 To listen for changes, pass in the `--subscribe` flag:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/list/installed --subscribe
+$ appcd exec /titanium/latest/sdk/list/installed --subscribe
 ```
 
-### Listing Titanium SDK GA Releases
+### `/sdk/list/releases`
 
-Returns a list of all available Titanium SDK releases.
+Returns a list of all available Titanium SDK GA releases.
+
+#### API Usage
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/releases');
+const { response } = await appcd.call('/titanium/latest/sdk/list/releases');
 console.log(response);
 ```
 
+#### CLI Usage
+
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/list/releases
+$ appcd exec /titanium/latest/sdk/list/releases
 {
   "status": 200,
   "message": {
@@ -126,17 +131,21 @@ $ appcd exec /titanium-sdk/latest/sdk/list/releases
 }
 ```
 
-### Listing Continuous Integration Branches
+### `/sdk/list/branches`
 
-Returns a list of CI branches and which one is the default.
+Returns a list of continuous integration branches and which one is the default.
+
+#### API Usage
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-branches');
+const { response } = await appcd.call('/titanium/latest/sdk/list/branches');
 console.log(response);
 ```
 
+#### CLI Usage
+
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/list/ci-branches
+$ appcd exec /titanium/latest/sdk/list/ci-branches
 {
   "status": 200,
   "message": {
@@ -165,23 +174,27 @@ $ appcd exec /titanium-sdk/latest/sdk/list/ci-branches
 }
 ```
 
-### Listing Continuous Integration Builds
+### `/sdk/list/builds/:branch?`
 
-Returns a hash of CI builds for the `master` branch or a specific branch.
+Returns a map of continuous integration builds for the `master` branch or a specific branch.
+
+#### API Usage
 
 ```js
-let { response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-builds');
+let { response } = await appcd.call('/titanium/latest/sdk/list/builds');
 console.log(response);
 
-({ response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-builds/master'));
+({ response } = await appcd.call('/titanium/latest/sdk/list/builds/master'));
 console.log(response);
 
-({ response } = await appcd.call('/titanium-sdk/latest/sdk/list/ci-builds/7_1_X'));
+({ response } = await appcd.call('/titanium/latest/sdk/list/builds/7_1_X'));
 console.log(response);
 ```
 
+#### CLI Usage
+
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/list/ci-branches/7_1_X
+$ appcd exec /titanium/latest/sdk/list/branches/7_1_X
 {
   "status": 200,
   "message": {
@@ -204,149 +217,192 @@ $ appcd exec /titanium-sdk/latest/sdk/list/ci-branches/7_1_X
 }
 ```
 
-### Installing a Titanium SDK
+### `/sdk/install/:name?`
+
+Installs the latest Titanium SDK GA release or a specific release, CI build, CI branch build, URL,
+or local `.zip` file.
+
+The `/sdk/install` endpoint returns a streamed response that emits the `data`, `end`, and `error` events.
+
+#### CLI Usage
 
 Installing the latest GA release:
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/install');
-console.log(response);
+const { response } = await appcd.call('/titanium/latest/sdk/install');
+
+response.on('data', evt => {
+  console.log(evt);
+});
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install
+$ appcd exec /titanium/latest/sdk/install
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/latest
+$ appcd exec /titanium/latest/sdk/install/latest
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "latest"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "latest" }'
+```
+
+#### API Usage
+
+Installing the latest GA release with progress events:
+
+```js
+const { response } = await appcd.call('/titanium/latest/sdk/install', {
+  data: {
+    progress: true
+  }
+});
+
+response.on('data', evt => {
+  console.log(evt);
+});
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/install '{ "progress": true }'
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/install/latest '{ "progress": true }'
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/install '{ "progress": true, "uri": "latest" }'
 ```
 
 Installing a specific GA release:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/7.0.2
+$ appcd exec /titanium/latest/sdk/install/7.0.2
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "7.0.2"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "7.0.2" }'
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/7.0.2.GA
+$ appcd exec /titanium/latest/sdk/install/7.0.2.GA
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "7.0.2.GA"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "7.0.2.GA" }'
 ```
-
 
 Installing an SDK from a remote URL:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "http://builds.appcelerator.com/mobile-releases/7.1.0/mobilesdk-7.1.0.GA-osx.zip"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "http://builds.appcelerator.com/mobile-releases/7.1.0/mobilesdk-7.1.0.GA-osx.zip" }'
 ```
 
 Installing the latest CI build for a given branch:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/master
+$ appcd exec /titanium/latest/sdk/install/master
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "master"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "master" }'
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/7_0_X
+$ appcd exec /titanium/latest/sdk/install/7_0_X
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "7_0_X"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "7_0_X" }'
 ```
 
 Installing a specific CI build by name or by branch+name:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/7.2.0.v20180403153400
+$ appcd exec /titanium/latest/sdk/install/7.2.0.v20180403153400
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "7.2.0.v20180403153400"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "7.2.0.v20180403153400"}'
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install/master:7.2.0.v20180403153400
+$ appcd exec /titanium/latest/sdk/install/master:7.2.0.v20180403153400
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "master:7.2.0.v20180403153400"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "master:7.2.0.v20180403153400" }'
 ```
 
 Installing a specific CI build by git hash:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "f9819892048c1056e4dafde22ccd1d59afae8941"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "f9819892048c1056e4dafde22ccd1d59afae8941" }'
 ```
 
 Installing from a local archive:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "/path/to/some/titanium-dist.zip"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "/path/to/some/titanium-dist.zip" }'
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/install '{"uri": "file:///path/to/some/titanium-dist.zip"}'
+$ appcd exec /titanium/latest/sdk/install '{ "uri": "file:///path/to/some/titanium-dist.zip" }'
 ```
 
-### Uninstalling a Titanium SDK
+### `/sdk/uninstall/:name?`
 
 Uninstalls a specific Titanium SDK.
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/uninstall/7.0.0.GA');
+const { response } = await appcd.call('/titanium/latest/sdk/uninstall/7.0.0.GA');
 console.log(response);
 ```
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/uninstall', { uri: '7.0.0.GA' });
+const { response } = await appcd.call('/titanium/latest/sdk/uninstall', { uri: '7.0.0.GA' });
 console.log(response);
 ```
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/sdk/uninstall', { uri: '/path/to/7.0.0.GA' });
+const { response } = await appcd.call('/titanium/latest/sdk/uninstall', { uri: '/path/to/7.0.0.GA' });
 console.log(response);
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/uninstall/7.0.0.GA
+$ appcd exec /titanium/latest/sdk/uninstall/7.0.0.GA
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/uninstall '{"uri": "7.0.0.GA"}'
+$ appcd exec /titanium/latest/sdk/uninstall '{"uri": "7.0.0.GA"}'
 ```
 
 ```sh
-$ appcd exec /titanium-sdk/latest/sdk/uninstall '{"uri": "/path/to/7.0.0.GA"}'
+$ appcd exec /titanium/latest/sdk/uninstall '{"uri": "/path/to/7.0.0.GA"}'
 ```
 
 ## Modules
 
-### Listing Module Install Locations
+The `/modules` service provides information about native Titanium Modules.
 
-Returns a list of all directories where Titanium modules may be installed. The first path is the
+### `/modules/list/locations`
+
+Returns a list of all directories where Titanium Modules may be installed. The first path is the
 default location.
 
+#### API Usage
+
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/modules/list/locations');
+const { response } = await appcd.call('/titanium/latest/modules/list/locations');
 console.log(response);
 ```
 
+#### CLI Usage
+
 ```sh
-$ appcd exec /titanium-sdk/latest/modules/list/locations
+$ appcd exec /titanium/latest/modules/list/locations
 {
   "status": 200,
   "message": [
@@ -356,21 +412,24 @@ $ appcd exec /titanium-sdk/latest/modules/list/locations
 }
 ```
 
-### Listing Installed Titanium Modules
+### `/modules/list/installed`
 
-Returns a list of installed Titanium modules across all installation locations. This endpoint
+Returns a list of installed Titanium Modules across all installation locations. This endpoint
 supports subscriptions.
 
-> :bulb: Both `/titanium-sdk/latest/modules` and `/titanium-sdk/latest/modules/list` forward to
-> `/titanium-sdk/latest/modules/list/installed`.
+> :bulb: Note: `/modules` and `/modules/list` forward to `/modules/list/installed`.
+
+#### API Usage
 
 ```js
-const { response } = await appcd.call('/titanium-sdk/latest/modules/list/installed');
+const { response } = await appcd.call('/titanium/latest/modules/list/installed');
 console.log(response);
 ```
 
+#### CLI Usage
+
 ```sh
-$ appcd exec /titanium-sdk/latest/modules/list/installed
+$ appcd exec /titanium/latest/modules/list/installed
 {
   "status": 200,
   "message": {
@@ -402,7 +461,50 @@ $ appcd exec /titanium-sdk/latest/modules/list/installed
 To listen for changes, pass in the `--subscribe` flag:
 
 ```sh
-$ appcd exec /titanium-sdk/latest/module/list/installed --subscribe
+$ appcd exec /titanium/latest/module/list/installed --subscribe
+```
+
+## CLI
+
+The `/cli` service process requests from the Titanium CLI.
+
+### `/cli`
+
+Executes a CLI command.
+
+#### API Usage
+
+Display the help:
+
+```js
+const { response } = await appcd.call('/titanium/latest/cli');
+
+response.on('data', evt => {
+  console.log(evt);
+});
+```
+
+Print the Titanium CLI configuration settings:
+
+```js
+const { response } = await appcd.call('/titanium/latest/cli', {
+  argv: [ 'config', 'ls' ]
+});
+
+response.on('data', evt => {
+  console.log(evt);
+});
+```
+
+### `/cli/schema`
+
+Returns a JSON object describing the available Titanium CLI commands and options.
+
+#### API Usage
+
+```js
+const { response } = await appcd.call('/titanium/latest/cli/schema');
+console.log(response);
 ```
 
 ## Legal
@@ -411,4 +513,4 @@ This project is open source under the [Apache Public License v2][1] and is devel
 [Axway, Inc](http://www.axway.com/) and the community. Please read the [`LICENSE`][1] file included
 in this distribution for more information.
 
-[1]: https://github.com/appcelerator/appcd-plugin-titanium-sdk/blob/master/LICENSE
+[1]: https://github.com/appcelerator/appcd-plugin-titanium/blob/master/LICENSE
