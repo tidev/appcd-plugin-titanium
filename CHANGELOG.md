@@ -1,3 +1,7 @@
+# v1.8.1 (Jan 15, 2020)
+
+ * chore: Updated outdated readme.
+
 # v1.8.0 (Jan 14, 2020)
 
  * feat: Formatted `info` command output.
