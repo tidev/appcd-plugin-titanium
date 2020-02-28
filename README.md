@@ -470,7 +470,7 @@ The `/cli` service process requests from the Titanium CLI.
 
 ### `/cli`
 
-Executes a CLI command.
+Returns the CLI session server URL.
 
 #### API Usage
 
@@ -479,20 +479,8 @@ Display the help:
 ```js
 const { response } = await appcd.call('/titanium/latest/cli');
 
-response.on('data', evt => {
-  console.log(evt);
-});
-```
-
-Print the Titanium CLI configuration settings:
-
-```js
-const { response } = await appcd.call('/titanium/latest/cli', {
-  argv: [ 'config', 'ls' ]
-});
-
-response.on('data', evt => {
-  console.log(evt);
+response.on('data', ({ url }) => {
+  console.log(`Next, open a WebSocket to ${url}`);
 });
 ```
 
