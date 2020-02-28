@@ -28,6 +28,7 @@ export default {
 
 						case 'task-progress':
 							// evt.progress
+							// console.log(evt.progress);
 							break;
 
 						case 'task-end':
