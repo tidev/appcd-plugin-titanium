@@ -47,6 +47,12 @@ export default {
 			}
 		}
 	},
+	args: [
+		{
+			name: 'filter...',
+			description: 'information types to display; you may select one or more'
+		}
+	],
 	desc: 'Display development environment information.',
 	options: {
 		'--json': 'output info as JSON',
@@ -54,6 +60,7 @@ export default {
 		'-t, --types [types]': {
 			default: 'all',
 			desc: 'information types to display; you may select one or more',
+			hidden: true,
 			values: [ 'all', ...Object.keys(types).filter(type => typeof types[type].fetch === 'function') ]
 		}
 	}
