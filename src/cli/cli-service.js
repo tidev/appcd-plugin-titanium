@@ -30,6 +30,7 @@ export default class CLIService extends Dispatcher {
 			commands: `${__dirname}/commands`,
 			help: true,
 			helpExitCode: 2,
+			name: 'titanium',
 			version: ({ data }) => parseVersion(data.userAgent)
 		});
 
