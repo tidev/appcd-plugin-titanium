@@ -67,7 +67,7 @@ export default {
 		console.log(bold('Android Emulators'));
 		if (info.emulators.length) {
 			for (const emu of info.emulators) {
-				console.log(`  ${cyan(emu.name)}${emu.type === 'avd' ? gray(' (AVD)') : emu.type === 'genymotion' ? gray(' (Genymotion)') : ''}`);
+				console.log(`  ${cyan(emu.name)}${emu.type === 'avd' ? gray(' (AVD)') : ''}`);
 				console.log(`    ID                  = ${magenta(emu.id)}`);
 				console.log(`    Version             = ${magenta(emu.target || '?')}`);
 				console.log(`    Architecture        = ${magenta(emu.abi)}`);
