@@ -1,5 +1,4 @@
 import android from '../info/android';
-import genymotion from '../info/genymotion';
 import ios from '../info/ios';
 import jdk from '../info/jdk';
 import os from '../info/os';
@@ -8,7 +7,6 @@ import windows from '../info/windows';
 
 const types = {
 	android,
-	genymotion,
 	ios,
 	jdk,
 	os,
@@ -50,16 +48,16 @@ export default {
 	args: [
 		{
 			name: 'filter...',
-			description: 'information types to display; you may select one or more'
+			description: 'Information types to display; you may select one or more'
 		}
 	],
 	desc: 'Display development environment information.',
 	options: {
-		'--json': 'output info as JSON',
+		'--json': 'Output info as JSON',
 		'-o, --output [forma]>': { hidden: true },
 		'-t, --types [types]': {
 			default: 'all',
-			desc: 'information types to display; you may select one or more',
+			desc: 'Information types to display; you may select one or more',
 			hidden: true,
 			values: [ 'all', ...Object.keys(types).filter(type => typeof types[type].fetch === 'function') ]
 		}

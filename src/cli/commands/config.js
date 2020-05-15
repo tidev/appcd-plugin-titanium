@@ -22,22 +22,22 @@ export default {
 	args: [
 		{
 			name: '<action>',
-			desc: 'the action to run',
+			desc: 'The action to run',
 			values: {
-				'ls, list': 'display all settings',
-				get: 'display a specific setting',
-				set: 'change a setting',
-				'rm, delete': 'remove a setting',
-				push: 'add a value to the end of a list',
-				pop: 'remove the last value in a list'
+				'ls, list':   'Display all settings',
+				get:          'Display a specific setting',
+				set:          'Change a setting',
+				'rm, delete': 'Remove a setting',
+				push:         'Add a value to the end of a list',
+				pop:          'Remove the last value in a list'
 			}
 		},
 		{ name: 'key', desc: '' },
 		{ name: 'value', desc: '' }
 	],
-	desc: 'Get and set Titanium config settings.',
+	desc: 'Manage configuration options',
 	options: {
-		'--json': 'outputs the config as JSON'
+		'--json': 'Outputs the config as JSON'
 	},
 	async action({ argv, console }) {
 		let { action, key, value } = argv;
