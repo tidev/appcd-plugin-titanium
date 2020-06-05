@@ -31,6 +31,9 @@ export default class CLIService extends Dispatcher {
 			help: true,
 			helpExitCode: 2,
 			name: 'titanium',
+			options: {
+				'--no-prompt': 'Disable interactive prompting'
+			},
 			version: ({ data }) => parseVersion(data.userAgent)
 		});
 
@@ -52,7 +55,7 @@ export default class CLIService extends Dispatcher {
 	}
 
 	/**
-	 * Perform any necessary cleanup.
+	 * Stop the CLI server.
 	 *
 	 * @returns {Promise}
 	 * @access public

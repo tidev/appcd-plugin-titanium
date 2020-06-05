@@ -7,14 +7,16 @@ if (!Error.prepareStackTrace) {
 import gawk from 'gawk';
 import CLIService from './cli/cli-service';
 import ModuleService from './module/module-service';
+import ProjectService from './project/project-service';
 import SDKService from './sdk/sdk-service';
 
 import { debounce, get } from 'appcd-util';
 import { modules, options, sdk } from 'titaniumlib';
 
-const cliSvc    = new CLIService();
-const moduleSvc = new ModuleService();
-const sdkSvc    = new SDKService();
+const cliSvc     = new CLIService();
+const moduleSvc  = new ModuleService();
+const projectSvc = new ProjectService();
+const sdkSvc     = new SDKService();
 
 /**
  * Wires up plugin services.
@@ -55,6 +57,9 @@ export async function activate(cfg) {
 	await moduleSvc.activate(cfg);
 	appcd.register([ '/module', '/modules' ], moduleSvc);
 
+	await projectSvc.activate();
+	appcd.register('/project', projectSvc);
+
 	await sdkSvc.activate(cfg);
 	appcd.register('/sdk', sdkSvc);
 }
@@ -68,6 +73,7 @@ export async function deactivate() {
 	await Promise.all([
 		cliSvc.deactivate(),
 		moduleSvc.deactivate(),
+		projectSvc.deactivate(),
 		sdkSvc.deactivate()
 	]);
 }
