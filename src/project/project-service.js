@@ -1,4 +1,9 @@
 import Dispatcher from 'appcd-dispatcher';
+import snooplogg from 'snooplogg';
+
+import { Project, templates } from 'titaniumlib';
+
+const { log } = snooplogg('project-service');
 
 /**
  * Service for creating and building Titanium applications.
@@ -21,11 +26,13 @@ export default class ProjectService extends Dispatcher {
 		this.register('/clean', () => {
 		});
 
-		this.register('/new', () => {
-		});
+		this.register('/new', ctx => new Project().create(ctx.request.data));
 
 		this.register('/run', () => {
 		});
+
+		// init the templates
+		await templates.getTemplates();
 	}
 
 	/**

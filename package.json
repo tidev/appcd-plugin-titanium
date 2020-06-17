@@ -16,8 +16,8 @@
     "test": "gulp test"
   },
   "dependencies": {
-    "chalk": "^4.0.0",
-    "cli-kit": "^1.2.0",
+    "chalk": "^4.1.0",
+    "cli-kit": "^1.2.1",
     "dateformat": "^3.0.3",
     "enquirer": "^2.3.5",
     "filesize": "^6.1.0",
@@ -34,7 +34,7 @@
     "yauzl": "^2.10.0"
   },
   "devDependencies": {
-    "appcd-gulp": "^3.0.0"
+    "appcd-gulp": "^3.0.1"
   },
   "homepage": "https://github.com/appcelerator/appc-daemon",
   "bugs": "https://github.com/appcelerator/appcd-plugin-titanium/issues",
