@@ -1,6 +1,8 @@
 import Dispatcher from 'appcd-dispatcher';
+import path from 'path';
 import TemplateService from './templates-service';
 
+import { AppcdError, codes } from 'appcd-response';
 import { Project } from 'titaniumlib';
 
 const { log } = appcd.logger('project-service');
@@ -19,17 +21,33 @@ export default class ProjectService extends Dispatcher {
 	 * @access public
 	 */
 	async activate(cfg) {
-		this.register('/', ctx => {
-			log(ctx.request.data);
-		});
+		const handler = action => {
+			return async ctx => {
+				// get project dir
+				let { cwd, projectDir } = ctx.request.data;
 
-		this.register('/build', ctx => {
-			log(ctx.request.data);
-		});
+				if (projectDir !== undefined && typeof projectDir !== 'string') {
+					throw new AppcdError(codes.BAD_REQUEST, 'Missing project directory');
+				}
 
-		this.register('/clean', ctx => {
-			log(ctx.request.data);
-		});
+				if (projectDir === undefined || !path.isAbsolute(projectDir)) {
+					if (!cwd || typeof cwd !== 'string') {
+						throw new AppcdError(codes.BAD_REQUEST, 'Current working directory required when project directory is relative');
+					}
+					projectDir = path.resolve(cwd, projectDir || '.');
+				}
+
+				return await new Project({
+					path: projectDir
+				})[action](ctx.request.data);
+			};
+		};
+
+		this.register('/', handler('tiapp'));
+
+		this.register('/build', handler('build'));
+
+		this.register('/clean', handler('clean'));
 
 		this.register('/new', async ctx => {
 			return await new Project({
@@ -37,9 +55,8 @@ export default class ProjectService extends Dispatcher {
 			}).create(ctx.request.data);
 		});
 
-		this.register('/run', ctx => {
-			log(ctx.request.data);
-		});
+		// TODO: in the future, run will call project.build and we'll "run" it ourselves
+		this.register('/run', handler('run'));
 
 		await this.templateSvc.activate(cfg);
 		this.register('/templates', this.templateSvc);

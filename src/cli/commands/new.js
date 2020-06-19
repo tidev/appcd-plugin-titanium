@@ -11,18 +11,17 @@ export default {
 		'--template [name]':          'The name of a project template, path to a local dir/zip, url, git repo, or npm package'
 	},
 	async action(ctx) {
-		const { argv } = ctx;
 		const { blue, bold, cyan, green, note } = appcd.logger.styles;
 
 		await promptLoop({
 			ctx,
 			data: {
 				cwd:          ctx.data.cwd,
-				force:        argv.force,
-				id:           argv.id,
-				name:         argv.name,
-				template:     argv.template,
-				workspaceDir: argv.workspaceDir
+				force:        ctx.argv.force,
+				id:           ctx.argv.id,
+				name:         ctx.argv.name,
+				template:     ctx.argv.template,
+				workspaceDir: ctx.argv.workspaceDir
 			},
 			header: `${bold(blue('Welcome! Let\'s create a new Titanium project!'))}
 First, we need to ask you a few questions about your project:
@@ -42,7 +41,7 @@ For help, visit: https://docs.axway.com/category/appdev
 Failed to create project!
 `,
 			path: '/project/new',
-			ns: 'cli:new',
+			ns: 'cli:new'
 		});
 	}
 };
