@@ -1,4 +1,4 @@
-import prompter from '../../lib/prompter';
+import { promptLoop } from '../../lib/prompt';
 
 export default {
 	aliases: '!create',
@@ -14,9 +14,10 @@ export default {
 		const { argv } = ctx;
 		const { blue, bold, cyan, green, note } = appcd.logger.styles;
 
-		await prompter({
+		await promptLoop({
 			ctx,
 			data: {
+				cwd:          ctx.data.cwd,
 				force:        argv.force,
 				id:           argv.id,
 				name:         argv.name,

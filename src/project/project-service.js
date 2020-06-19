@@ -1,14 +1,16 @@
 import Dispatcher from 'appcd-dispatcher';
-import snooplogg from 'snooplogg';
+import TemplateService from './templates-service';
 
-import { Project, templates } from 'titaniumlib';
+import { Project } from 'titaniumlib';
 
-const { log } = snooplogg('project-service');
+const { log } = appcd.logger('project-service');
 
 /**
  * Service for creating and building Titanium applications.
  */
 export default class ProjectService extends Dispatcher {
+	templateSvc = new TemplateService();
+
 	/**
 	 * Registers all of the endpoints.
 	 *
@@ -16,23 +18,31 @@ export default class ProjectService extends Dispatcher {
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate() {
-		this.register('/', () => {
+	async activate(cfg) {
+		this.register('/', ctx => {
+			log(ctx.request.data);
 		});
 
-		this.register('/build', () => {
+		this.register('/build', ctx => {
+			log(ctx.request.data);
 		});
 
-		this.register('/clean', () => {
+		this.register('/clean', ctx => {
+			log(ctx.request.data);
 		});
 
-		this.register('/new', ctx => new Project().create(ctx.request.data));
-
-		this.register('/run', () => {
+		this.register('/new', async ctx => {
+			return await new Project({
+				templates: (await this.call('/templates')).response
+			}).create(ctx.request.data);
 		});
 
-		// init the templates
-		await templates.getTemplates();
+		this.register('/run', ctx => {
+			log(ctx.request.data);
+		});
+
+		await this.templateSvc.activate(cfg);
+		this.register('/templates', this.templateSvc);
 	}
 
 	/**
@@ -42,5 +52,6 @@ export default class ProjectService extends Dispatcher {
 	 * @access public
 	 */
 	async deactivate() {
+		await this.templateSvc.deactivate();
 	}
 }

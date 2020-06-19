@@ -1,3 +1,6 @@
+import { login } from '../auth/login';
+import { prompt } from '../../lib/prompt';
+
 export default {
 	desc: 'Select default account and organization',
 	options: {
@@ -6,8 +9,6 @@ export default {
 		'--org [guid|id|name]': 'The organization to switch to'
 	},
 	async action(params) {
-		const { prompt } = require('enquirer');
-		const { login } = require('../auth/login');
 		const { argv, console, terminal } = params;
 		const { response: accounts } = await appcd.call('/amplify/1.x/auth');
 		let account;
@@ -62,10 +63,8 @@ export default {
 					initial,
 					message: 'Select an organization to switch to',
 					name:    'org',
-					stdin:   terminal.stdin,
-					stdout:  terminal.stdout,
 					type:    'select'
-				}));
+				}, terminal));
 
 				console.log();
 			}
@@ -81,7 +80,7 @@ export default {
 		if (argv.json) {
 			console.log(JSON.stringify(account, null, 2));
 		} else {
-			const { highlight } = require('appcd-logger').snooplogg.styles;
+			const { highlight } = appcd.logger.styles;
 			const msg = loggedIn ? 'are logged into' : previousOrg !== account.org.guid ? 'have switched to' : 'are already switched to';
 			console.log(`You ${msg} ${highlight(account.org.name)} as ${highlight(account.user.email || account.name)}.`);
 		}

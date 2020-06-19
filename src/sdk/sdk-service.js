@@ -47,34 +47,36 @@ export default class SDKService extends Dispatcher {
 
 	/**
 	 * Install SDK service handler.
+	 * Note: This method does not return a promise because we want the response to be sent
+	 * immediately and receive install events as they occur. It relies on the
 	 *
 	 * @param {Context} ctx - A request context.
 	 * @access private
 	 */
-	install(ctx) {
-		const { data, params } = ctx.request;
+	install({ request, response }) {
+		const { data, params } = request;
 
 		sdk.install({
 			downloadDir: this.config.home && expandPath(this.config.home, 'downloads'),
 			keep:        data.keep,
 			onProgress(evt) {
 				if (data.progress) {
-					ctx.response.write(evt);
+					response.write(evt);
 				}
 			},
 			overwrite:   data.overwrite,
 			uri:         data.uri || params.name
 		}).then(tisdk => {
-			ctx.response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
-			ctx.response.end();
-		}, err => {
+			response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
+			response.end();
+		}).catch(err => {
 			try {
 				if (err.code === 'ENOTFOUND') {
-					ctx.response.write(new AppcdError(codes.NOT_FOUND, err.message));
+					response.write(new AppcdError(codes.NOT_FOUND, err.message));
 				} else {
-					ctx.response.write(new AppcdError(err));
+					response.write(new AppcdError(err));
 				}
-				ctx.response.end();
+				response.end();
 			} catch (e) {
 				// stream is probably closed
 			}

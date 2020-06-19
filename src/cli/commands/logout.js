@@ -24,7 +24,7 @@ export default {
 
 		// pretty output
 		if (revoked.length) {
-			const { highlight } = require('appcd-logger').snooplogg.styles;
+			const { highlight } = appcd.logger.styles;
 			console.log('Revoked authenticated accounts:');
 			for (const account of revoked) {
 				console.log(` ${highlight(account.name)}`);

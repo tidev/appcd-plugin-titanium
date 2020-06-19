@@ -1,4 +1,4 @@
-import CLI, { snooplogg } from 'cli-kit';
+import CLI from 'cli-kit';
 import Dispatcher from 'appcd-dispatcher';
 import fs from 'fs';
 import getPort from 'get-port';
@@ -7,7 +7,7 @@ import path from 'path';
 import { get } from 'appcd-util';
 import { parseVersion } from '../lib/util';
 
-const { highlight } = snooplogg.styles;
+const { highlight } = appcd.logger.styles;
 
 /**
  * Defines a service endpoint for defining, processing, and dispatching Titanium CLI commands.

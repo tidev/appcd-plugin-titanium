@@ -1,3 +1,7 @@
+import { prompt } from '../../lib/prompt';
+
+const { alert, highlight } = appcd.logger.styles;
+
 /**
  * Performs a login.
  *
@@ -9,10 +13,6 @@
  * @returns {Object} The account info.
  */
 export async function login({ argv, console, setExitCode, terminal }) {
-	const { prompt } = require('enquirer');
-	const { snooplogg } = require('appcd-logger');
-	const { alert, highlight } = snooplogg.styles;
-
 	const data = {
 		baseUrl:      argv.baseUrl,
 		clientId:     argv.clientId,
@@ -26,15 +26,12 @@ export async function login({ argv, console, setExitCode, terminal }) {
 
 	if (Object.prototype.hasOwnProperty.call(argv, 'username')) {
 		const questions = [];
-		const { stdin, stdout } = terminal;
 
 		if (!argv.username || typeof argv.username !== 'string') {
 			questions.push({
 				type:    'input',
 				name:    'username',
 				message: 'Username:',
-				stdin,
-				stdout,
 				validate(s) {
 					return !!s || 'Please enter your username';
 				}
@@ -46,8 +43,6 @@ export async function login({ argv, console, setExitCode, terminal }) {
 				type:    'password',
 				name:    'password',
 				message: 'Password:',
-				stdin,
-				stdout,
 				validate(s) {
 					return !!s || 'Please enter your password';
 				}
@@ -58,7 +53,7 @@ export async function login({ argv, console, setExitCode, terminal }) {
 			throw new Error('--username and --password are required when --json is set');
 		}
 
-		Object.assign(data, await prompt(questions));
+		Object.assign(data, await prompt(questions, terminal));
 
 		if (!argv.json) {
 			// add a newline after prompting has completed

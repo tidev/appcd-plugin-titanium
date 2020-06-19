@@ -1,3 +1,7 @@
+import { login } from '../auth/login';
+
+const { highlight } = appcd.logger.styles;
+
 export default {
 	desc: 'Log in to the Axway AMPLIFY platform',
 	options: {
@@ -21,15 +25,6 @@ export default {
 		'-p, --password [pass]':     'Password to authenticate with'
 	},
 	async action(params) {
-		const [
-			{ snooplogg },
-			{ login }
-		] = await Promise.all([
-			import('appcd-logger'),
-			import('../auth/login')
-		]);
-
-		const { highlight } = snooplogg.styles;
 		const { argv, console } = params;
 		const account = await login(params);
 

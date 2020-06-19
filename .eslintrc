@@ -1,5 +1,6 @@
 {
 	"rules": {
-		"no-loop-func": "off"
+		"no-loop-func": "off",
+		"promise/always-return": "off"
 	}
 }
