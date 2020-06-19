@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "chalk": "^4.1.0",
-    "cli-kit": "^1.2.2",
+    "cli-kit": "^1.2.3",
     "dateformat": "^3.0.3",
     "enquirer": "^2.3.5",
     "filesize": "^6.1.0",

@@ -1,6 +1,7 @@
 import { prompt as enquire } from 'enquirer';
 import { Readable } from 'stream';
 
+const { log } = appcd.logger('prompt');
 const { highlight } = appcd.logger.styles;
 
 /**
@@ -15,6 +16,8 @@ export function prompt(questions, { stdin, stdout } = {}) {
 	if (!Array.isArray(questions)) {
 		questions = [ questions ];
 	}
+
+	log(`Prompting with terminal size ${highlight(stdout.columns)} x ${highlight(stdout.rows)}`);
 
 	for (let i = 0, len = questions.length; i < len; i++) {
 		questions[i] = {
