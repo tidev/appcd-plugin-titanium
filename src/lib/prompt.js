@@ -4,9 +4,11 @@ import { Readable } from 'stream';
 const { highlight } = appcd.logger.styles;
 
 /**
- * ?
+ * Prompts for a value with unified settings and improved style consistency.
  *
- * @param {Object|Array.<Object>} questions -
+ * @param {Object|Array.<Object>} questions - A question or list of questions to prompt for.
+ * @param {Object} [terminal] - An object containing a `stdin` and `stdout` such as a cli-kit
+ * `Terminal` instance.
  * @returns {Promise}
  */
 export function prompt(questions, { stdin, stdout } = {}) {
@@ -40,9 +42,17 @@ export function prompt(questions, { stdin, stdout } = {}) {
 }
 
 /**
- * ?
+ * Calls the specified appcd service and if the response returns an error with a `prompt`, then
+ * it will prompt for the value and retry the request.
  *
  * @param {Object} opts - Various options.
+ * @param {Object} opts.ctx - A cli-kit execution context.
+ * @param {Object} opts.data - The data payload to send to the appcd service.
+ * @param {String|Function} [opts.footer] - A message to display after the service call has completed successfully.
+ * @param {String|Function} [opts.header] - A message to display before the first prompt.
+ * @param {String} opts.ns - The debug log namespace for this prompt loop.
+ * @param {String} opts.path - The appcd service to call.
+ * @param {Function} [opts.print] - A custom print function. Defaults to `console.log()`.
  * @returns {Promise}
  */
 export async function promptLoop({ ctx, data, footer, header, ns, path, print }) {
