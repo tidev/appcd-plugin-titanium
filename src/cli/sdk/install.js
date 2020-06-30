@@ -1,5 +1,13 @@
+import ProgressBar from 'progress';
+
+import { ansi } from 'cli-kit';
+import { arrowRight, bullet, tick } from 'figures';
+
+const { log } = appcd.logger('sdk:install');
+const { cyan, gray, green, highlight } = appcd.logger.styles;
+
 export default {
-	async action({ console, argv }) {
+	async action({ argv, console, terminal }) {
 		const { response } = await appcd.call('/sdk/install', {
 			data: {
 				keep:      argv.keep,
@@ -9,39 +17,93 @@ export default {
 			}
 		});
 
-		return new Promise((resolve, reject) => {
-			let tasks = [];
+		try {
+			if (argv.progress) {
+				terminal.stderr.write(ansi.cursor.hide);
+			}
 
-			response
-				.on('data', evt => {
-					switch (evt && evt.type) {
-						case 'tasks':
-							tasks = evt.tasks;
-							break;
+			await new Promise((resolve, reject) => {
+				let bar = null;
+				let tasks = [];
+				const tokens = {};
 
-						case 'task-start':
-							const name = tasks[evt.task - 1];
-							if (name) {
-								console.log(`${name}...`);
+				response
+					.on('data', evt => {
+						if (!evt || typeof evt !== 'object') {
+							return;
+						}
+
+						try {
+							switch (evt.type) {
+								case 'tasks':
+									tasks = evt.tasks;
+									log('Received tasks:', tasks);
+									break;
+
+								case 'task-start':
+								{
+									const name = tasks[evt.task - 1] || null;
+									log(`Starting task: ${highlight(name)}`);
+
+									if (argv.progress) {
+										tokens.name = name;
+										tokens.paddedPercent = '  0%';
+										tokens.symbol = cyan(arrowRight);
+
+										if (evt.hasProgress) {
+											bar = new ProgressBar(' :symbol :name  :paddedPercent [:bar]', {
+												clear:      true,
+												complete:   cyan('='),
+												incomplete: gray('.'),
+												stream:     terminal.stderr,
+												total:      100,
+												width:      40
+											});
+											bar.render(tokens);
+										} else {
+											terminal.stderr.write(` ${tokens.symbol} ${name}`);
+										}
+									} else {
+										console.log(` ${green(bullet)} ${name}...`);
+									}
+									break;
+								}
+
+								case 'task-progress':
+									if (bar) {
+										tokens.paddedPercent = (evt.progress * 100).toFixed(0).padStart(3) + '%';
+										bar.update(evt.progress, tokens);
+									}
+									break;
+
+								case 'task-end':
+								{
+									terminal.stderr.cursorTo(0);
+									terminal.stderr.clearLine();
+									const name = tasks[evt.task - 1] || null;
+									log(`Finished task: ${highlight(name)}`);
+									bar = null;
+									console.log(` ${green(tick)} ${name}`);
+									break;
+								}
+
+								default:
+									console.log(evt.message || evt);
 							}
-							break;
-
-						case 'task-progress':
-							// evt.progress
-							// console.log(evt.progress);
-							break;
-
-						case 'task-end':
-							break;
-
-						default:
-							console.log(evt.message || evt);
-					}
-				})
-				.once('end', resolve)
-				.once('error', reject);
-		});
+						} catch (e) {
+							reject(e);
+						}
+					})
+					.once('end', resolve)
+					.once('error', reject);
+			});
+		} finally {
+			if (argv.progress) {
+				terminal.stderr.write(ansi.cursor.show);
+			}
+		}
 	},
+	aliases: [ 'i' ],
 	args: [
 		{
 			name: 'version',

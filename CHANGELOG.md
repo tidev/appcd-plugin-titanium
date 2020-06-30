@@ -1,15 +1,21 @@
 # v2.0.0
 
  * BREAKING CHANGE(config): `config` command no longer returns status as apart of JSON output.
- * BREAKING CHANGE(config): `config` command does not return current value when doing a `set`, `push`, or
-   `unshift`.
- * BREAKING CHANGE(config): `config list` command no longer supports filtering, use `config get` instead.
+ * BREAKING CHANGE(config): `config` command does not return current value when doing a `set`,
+   `push`, or `unshift`.
+ * BREAKING CHANGE(config): `config list` command no longer supports filtering, use `config get`
+   instead.
  * BREAKING CHANGE(config): Write operations such as `set` return `"OK"` instead of `"Saved"`.
  * feat(info): Added `filter` argument to `ti info`.
- * feat: Added project service handler. [(DAEMON-26)](https://jira.appcelerator.org/browse/DAEMON-26)
- * feat: Added `new` command. [(DAEMON-321)](https://jira.appcelerator.org/browse/DAEMON-321)
- * feat: Added auth commands `login`, `logout`, `whoami`, and `switch`.
+ * feat(project): Added project service handler.
+   [(DAEMON-26)](https://jira.appcelerator.org/browse/DAEMON-26)
+ * feat(cli): Added `new` command. [(DAEMON-321)](https://jira.appcelerator.org/browse/DAEMON-321)
+ * feat(cli): Added auth commands `login`, `logout`, `whoami`, and `switch`.
    [(DAEMON-300)](https://jira.appcelerator.org/browse/DAEMON-300)
+ * feat(cli:sdk): Added aliases to sdk commands (i, ls, rm).
+ * feat(sdk): Added `find` endpoint to SDK service to get info about an installed Titanium SDK.
+ * feat(sdk): Added progress bars during SDK installation.
+ * feat(project): Added legacy Titanium CLI command bootstrap.
  * refactor: Updated to cli-kit@0.14.0 adding support for the new client/server architecture.
  * refactor: Updated `config` command actions to be subcommands with improved help output.
  * chore: Added plugin API version 2.x.

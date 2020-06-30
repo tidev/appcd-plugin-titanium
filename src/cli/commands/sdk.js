@@ -4,12 +4,12 @@ import select from '../sdk/select';
 import uninstall from '../sdk/uninstall';
 
 export default {
+	action: list.action,
 	commands: {
 		install,
 		list,
 		select,
 		uninstall
 	},
-	defaultCommand: 'list',
 	desc: 'Manage Titanium SDKs.'
 };

@@ -1,4 +1,4 @@
-import Dispatcher from 'appcd-dispatcher';
+import Dispatcher, { DispatcherError } from 'appcd-dispatcher';
 import SDKListService from './sdk-list-service';
 
 import { AppcdError, codes } from 'appcd-response';
@@ -26,6 +26,7 @@ export default class SDKService extends Dispatcher {
 			ctx.path = '/list';
 			return next();
 		})
+			.register('/find/:name?',      ctx => this.find(ctx))
 			.register('/list',             this.installed)
 			.register('/branches',         () => sdk.getBranches())
 			.register('/builds/:branch?',  ctx => sdk.getBuilds(ctx.request.params.branch))
@@ -43,6 +44,23 @@ export default class SDKService extends Dispatcher {
 	 */
 	async deactivate() {
 		await this.installed.deactivate();
+	}
+
+	/**
+	 * Scans installed Titanium SDKs to find an SDK by name.
+	 *
+	 * @param {Context} ctx - A request context.
+	 * @returns {Object}
+	 * @access private
+	 */
+	find(ctx) {
+		const { data, params } = ctx.request;
+		const name = data.name || params.name;
+		const result = this.installed.data.find(s => s.name === name);
+		if (result) {
+			return result;
+		}
+		throw new DispatcherError(`Titanium SDK ${name} not found`);
 	}
 
 	/**
@@ -67,12 +85,12 @@ export default class SDKService extends Dispatcher {
 			overwrite:   data.overwrite,
 			uri:         data.uri || params.name
 		}).then(tisdk => {
-			response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
+			response.write({ fin: true, message: `\nTitanium SDK ${tisdk.name} installed` });
 			response.end();
 		}).catch(err => {
 			try {
 				if (err.code === 'ENOTFOUND') {
-					response.write(new AppcdError(codes.NOT_FOUND, err.message));
+					response.write(new DispatcherError(err.message));
 				} else {
 					response.write(new AppcdError(err));
 				}
@@ -101,7 +119,7 @@ export default class SDKService extends Dispatcher {
 		try {
 			return await sdk.uninstall(uri);
 		} catch (err) {
-			throw err.code === 'ENOTFOUND' ? new AppcdError(codes.NOT_FOUND, err) : err;
+			throw err.code === 'ENOTFOUND' ? new DispatcherError(err) : err;
 		}
 	}
 }
