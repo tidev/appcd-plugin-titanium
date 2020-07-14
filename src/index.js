@@ -57,7 +57,7 @@ export async function activate(cfg) {
 	await moduleSvc.activate(cfg);
 	appcd.register([ '/module', '/modules' ], moduleSvc);
 
-	await projectSvc.activate();
+	await projectSvc.activate(cfg);
 	appcd.register('/project', projectSvc);
 
 	await sdkSvc.activate(cfg);

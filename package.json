@@ -16,10 +16,14 @@
     "test": "gulp test"
   },
   "dependencies": {
+    "appcd-fs": "^2.0.0",
+    "appcd-path": "^2.0.1",
+    "appcd-util": "^3.0.0",
     "chalk": "^4.1.0",
     "cli-kit": "^1.2.4",
+    "colors": "^1.4.0",
     "dateformat": "^3.0.3",
-    "enquirer": "^2.3.5",
+    "enquirer": "^2.3.6",
     "figures": "^3.2.0",
     "filesize": "^6.1.0",
     "fs-extra": "^9.0.1",
@@ -30,6 +34,7 @@
     "pluralize": "^8.0.0",
     "progress": "^2.0.3",
     "prompts": "^2.3.2",
+    "semver": "^7.3.2",
     "sort-object-keys": "^1.1.3",
     "source-map-support": "^0.5.19",
     "titaniumlib": "^3.0.0",

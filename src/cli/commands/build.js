@@ -11,7 +11,6 @@ export default {
 		await promptLoop({
 			ctx,
 			data: {
-				cwd:          ctx.data.cwd,
 				force:        ctx.argv.force,
 				platform:     ctx.argv.platform,
 				projectDir:   ctx.argv.projectDir

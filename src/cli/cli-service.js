@@ -7,6 +7,7 @@ import path from 'path';
 import { get } from 'appcd-util';
 import { parseVersion } from '../lib/util';
 
+const { log } = appcd.logger('cli-service');
 const { highlight } = appcd.logger.styles;
 
 /**
@@ -43,9 +44,12 @@ export default class CLIService extends Dispatcher {
 
 		this.server = await cli.listen({ port });
 
-		this.register('/', () => ({
-			url: `ws://127.0.0.1:${port}`
-		}));
+		this.register('/', () => {
+			log(`Returning CLI server URL: ${highlight(`ws://127.0.0.1:${port}`)}`);
+			return {
+				url: `ws://127.0.0.1:${port}`
+			};
+		});
 
 		this.register('/schema', ({ headers }) => cli.schema({
 			data: {

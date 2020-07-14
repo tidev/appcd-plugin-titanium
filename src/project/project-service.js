@@ -6,7 +6,7 @@ import { AppcdError, codes } from 'appcd-response';
 import { Project } from 'titaniumlib';
 import { spawn } from 'appcd-subprocess';
 
-const { log } = appcd.logger('project-service');
+const { error, log } = appcd.logger('project-service');
 
 /**
  * Service for creating and building Titanium applications.
@@ -22,6 +22,8 @@ export default class ProjectService extends Dispatcher {
 	 * @access public
 	 */
 	async activate(cfg) {
+		this.config = cfg;
+
 		this.register('/', ctx => {
 			return 'tiapp coming soon!';
 		});
@@ -70,7 +72,9 @@ export default class ProjectService extends Dispatcher {
 	 * @access private
 	 */
 	async exec(command, ctx) {
-		let { cwd, projectDir } = ctx.request.data;
+		const { cwd } = ctx.headers;
+		let { projectDir } = ctx.request.data;
+
 		if (projectDir !== undefined && typeof projectDir !== 'string') {
 			throw new AppcdError(codes.BAD_REQUEST, 'Missing project directory');
 		}
@@ -87,21 +91,10 @@ export default class ProjectService extends Dispatcher {
 		});
 
 		// const { sdk } = project.tiapp.get('sdk');
-		const sdk = '9.0.2.GA';
-
+		const sdk = '9.0.3.GA';
 		const sdkInfo = (await appcd.call('/sdk/find', { data: { name: sdk } })).response;
 
-		const data = {
-			...ctx.request.data,
-			command,
-			projectDir,
-			sdk,
-			sdkPath: sdkInfo.path
-		};
-
-		log(data);
-
-		// spawn the bootstrap with the cmd and args
+		log('Spawning legacy Titanium CLI bootstrap...');
 		const { child } = spawn({
 			command: process.execPath,
 			args: [ path.resolve(__dirname, 'legacy/bootstrap.js') ],
@@ -113,40 +106,64 @@ export default class ProjectService extends Dispatcher {
 
 		child.stdout.on('data', data => ctx.response.write(data.toString()));
 		child.stderr.on('data', data => ctx.response.write(data.toString()));
-		child.on('close', () => ctx.response.end());
+		child.on('close', code => {
+			log(`Legacy Titanium CLI bootstrap exited (code ${code || 0})`);
+			ctx.response.end();
+		});
 		child.on('message', async msg => {
-			if (msg.type === 'error') {
-				ctx.response.end(msg);
-			} else if (msg.type === 'request') {
-				const { id, path, data } = msg;
-				if (id && path) {
-					let response;
-					try {
-						response = await appcd.call(path, data);
-					} catch (err) {
-						child.send({
-							id,
-							type: 'error',
-							error: err
-						});
-						throw err;
-					}
+			switch (msg.type) {
+				case 'call':
+					const { id, path, data } = msg;
+					if (id && path) {
+						let response;
+						try {
+							response = await appcd.call(path, data);
+						} catch (err) {
+							child.send({
+								error: err,
+								id,
+								type: 'error'
+							});
+							throw err;
+						}
 
-					try {
-						child.send({
-							id,
-							type: 'response',
-							response
-						});
-					} catch (err) {
-						console.error(err);
+						try {
+							child.send({
+								id,
+								response,
+								type: 'response'
+							});
+						} catch (err) {
+							console.error(err);
+						}
 					}
-				}
-			} else {
-				console.log('GOT IPC MESSAGE!');
-				console.log(msg);
+					return;
+
+				case 'error':
+					error(msg);
+					return ctx.response.end(msg);
+
+				case 'log':
+					return console.log(...msg.args);
+
+				case 'telemetry':
+					return appcd.telemetry(msg.payload);
 			}
 		});
+
+		const data = {
+			argv: {
+				...ctx.request.data,
+				projectDir,
+				sdk
+			},
+			command,
+			config: this.config.titanium,
+			sdkPath: sdkInfo.path,
+			type: 'exec'
+		};
+		log('Sending data to bootstrap:');
+		log(data);
 		child.send(data);
 	}
 }

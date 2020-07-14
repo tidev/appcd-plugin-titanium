@@ -1,8 +1,10 @@
+import { DispatcherContext } from 'appcd-dispatcher';
+import { format } from 'util';
 import { prompt as enquire } from 'enquirer';
 import { Readable } from 'stream';
 
 const { log } = appcd.logger('prompt');
-const { highlight } = appcd.logger.styles;
+const { alert, highlight } = appcd.logger.styles;
 
 /**
  * Prompts for a value with unified settings and improved style consistency.
@@ -63,12 +65,19 @@ export async function promptLoop({ ctx, data, footer, header, ns, path, print })
 	const logger = appcd.logger(ns);
 
 	if (print === undefined) {
-		print = console.log;
+		print = (msg, ...args) => {
+			if (msg && typeof msg === 'object' && msg.type === 'error') {
+				console.error(alert(`Error: ${msg.message}`));
+			} else {
+				terminal.stdout.write(format(msg, ...args));
+			}
+		};
 	}
 
 	while (true) {
 		try {
-			const { response } = await appcd.call(path, { data });
+			// ctx.data contains `cwd`, `env`, and `userAgent` via cli-kit
+			const { response } = await appcd.call(path, new DispatcherContext({ headers: ctx.data, request: { data } }));
 			if (response instanceof Readable) {
 				await new Promise((resolve, reject) => {
 					response.on('data', print);

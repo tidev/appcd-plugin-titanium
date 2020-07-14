@@ -8,8 +8,9 @@ if (!process.connected) {
 	process.exit(2);
 }
 
-// import CLI from './ti/cli';
+import 'colors';
 import './patch';
+import './tunnel';
 
 process.title = 'titanium-legacy-bootstrap';
 
@@ -28,26 +29,4 @@ process.exit = code => Promise
 
 process
 	.on('uncaughtException', err => console.error('Caught unhandled exception:', err))
-	.on('unhandledRejection', (reason, p) => console.error('Caught unhandled rejection at: Promise ', p, reason))
-	.once('message', onMessage);
-
-async function onMessage(msg) {
-	try {
-		// const cli = new CLI(msg);
-		// await cli.go(msg.command);
-		console.log('Hi from the bootstrap!');
-
-		// the command is complete, but the IPC channel is still open, so we simply disconnect it and
-		// this process should exit whenever the command finishes
-		process.disconnect();
-	} catch (err) {
-		process.send({
-			...err,
-			message: err.message || err,
-			stack: err.stack,
-			status: err.status || 500,
-			type: 'error'
-		});
-		process.exit(1);
-	}
-}
+	.on('unhandledRejection', (reason, p) => console.error('Caught unhandled rejection at: Promise ', p, reason));

@@ -56,7 +56,7 @@ export default class SDKService extends Dispatcher {
 	find(ctx) {
 		const { data, params } = ctx.request;
 		const name = data.name || params.name;
-		const result = this.installed.data.find(s => s.name === name);
+		const result = this.installed.find(name);
 		if (result) {
 			return result;
 		}
@@ -85,7 +85,7 @@ export default class SDKService extends Dispatcher {
 			overwrite:   data.overwrite,
 			uri:         data.uri || params.name
 		}).then(tisdk => {
-			response.write({ fin: true, message: `\nTitanium SDK ${tisdk.name} installed` });
+			response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
 			response.end();
 		}).catch(err => {
 			try {

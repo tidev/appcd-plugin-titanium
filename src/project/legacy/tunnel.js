@@ -1,3 +1,4 @@
+import CLI from './ti/cli';
 import uuid from 'uuid';
 
 /**
@@ -18,16 +19,36 @@ class Tunnel {
 	 * @access public
 	 */
 	constructor() {
-		process.on('message', data => {
-			const { id } = data;
+		process.on('message', async data => {
+			const { id, type } = data;
+
+			if (type === 'exec') {
+				try {
+					await new CLI(data).go();
+
+					// the command is complete, but the IPC channel is still open, so we simply disconnect it and
+					// this process should exit whenever the command finishes
+					process.disconnect();
+				} catch (err) {
+					process.send({
+						...err,
+						message: err.message || err,
+						stack: err.stack,
+						status: err.status || 500,
+						type: 'error'
+					});
+					process.exit(1);
+				}
+				return;
+			}
+
 			const req = id && this.pending[id];
 			if (!req) {
 				return;
 			}
-
 			const { resolve, reject } = req;
 
-			switch (data.type) {
+			switch (type) {
 				case 'response':
 					delete this.pending[id];
 					resolve(data.response);
@@ -54,11 +75,37 @@ class Tunnel {
 			const id = uuid.v4();
 			this.pending[id] = { resolve, reject };
 			process.send({
+				data,
 				id,
-				type: 'request',
 				path,
-				data
+				type: 'call'
 			});
+		});
+	}
+
+	/**
+	 * Writes a message to the debug log.
+	 *
+	 * @param {...*} args - A message or data to log.
+	 * @access public
+	 */
+	log(...args) {
+		process.send({
+			args,
+			type: 'log'
+		});
+	}
+
+	/**
+	 * Sends a telemetry event.
+	 *
+	 * @param {Object} payload - The telemetry payload including the `event` and data.
+	 * @access public
+	 */
+	telemetry(payload) {
+		process.send({
+			payload,
+			type: 'telemetry'
 		});
 	}
 }

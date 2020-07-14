@@ -131,6 +131,24 @@ $ appcd exec /titanium/latest/sdk/list/releases
 }
 ```
 
+### `/sdk/find/:name?`
+
+Returns information about the specified installed SDK.
+
+#### CLI Usage
+
+```sh
+$ appcd exec /titanium/latest/sdk/find
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/find/latest
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/find/9.0.0.GA
+```
+
 ### `/sdk/list/branches`
 
 Returns a list of continuous integration branches and which one is the default.

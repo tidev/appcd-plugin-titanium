@@ -4,7 +4,7 @@ import { ansi } from 'cli-kit';
 import { arrowRight, bullet, tick } from 'figures';
 
 const { log } = appcd.logger('sdk:install');
-const { cyan, gray, green, highlight } = appcd.logger.styles;
+const { alert, cyan, gray, green, highlight } = appcd.logger.styles;
 
 export default {
 	async action({ argv, console, terminal }) {
@@ -77,18 +77,25 @@ export default {
 									break;
 
 								case 'task-end':
+								default:
 								{
-									terminal.stderr.cursorTo(0);
-									terminal.stderr.clearLine();
-									const name = tasks[evt.task - 1] || null;
-									log(`Finished task: ${highlight(name)}`);
-									bar = null;
-									console.log(` ${green(tick)} ${name}`);
+									if (bar || evt.type === 'task-end') {
+										terminal.stderr.cursorTo(0);
+										terminal.stderr.clearLine();
+										bar = null;
+									}
+
+									if (evt.type === 'task-end') {
+										const name = tasks[evt.task - 1] || null;
+										log(`Finished task: ${highlight(name)}`);
+										console.log(` ${green(tick)} ${name}`);
+									} else if (evt instanceof Error) {
+										console.error(`\n${alert(`Error: ${evt.message}`)}`);
+									} else {
+										console.log(`\n${evt.message || evt}`);
+									}
 									break;
 								}
-
-								default:
-									console.log(evt.message || evt);
 							}
 						} catch (e) {
 							reject(e);
