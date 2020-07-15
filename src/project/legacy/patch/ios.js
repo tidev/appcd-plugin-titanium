@@ -1,3 +1,5 @@
+/* eslint-disable promise/no-callback-in-promise */
+
 import tunnel from '../tunnel';
 import * as version from '../../../lib/version';
 

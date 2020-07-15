@@ -1,26 +1,20 @@
 export function setup() {
 }
 
-export function file(args) {
+export function file() {
 	return {
-		prompt(callback) {
-			// callback(err, value)
-		}
+		prompt() {}
 	};
 }
 
-export function select(args) {
+export function select() {
 	return {
-		prompt(callback) {
-			// callback(err, value)
-		}
+		prompt() {}
 	};
 }
 
-export function text(args) {
+export function text() {
 	return {
-		prompt(callback) {
-			// callback(err, value)
-		}
+		prompt() {}
 	};
 }

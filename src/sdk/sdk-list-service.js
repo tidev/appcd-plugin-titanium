@@ -74,7 +74,7 @@ export default class SDKListService extends DataServiceDispatcher {
 	/**
 	 * Finds an SDK by name (or version) or by `latest`.
 	 *
-	 * @param [name='latest'] - The SDK name or version to search for.
+	 * @param {String} [name='latest'] - The SDK name or version to search for.
 	 * @returns {Object}
 	 */
 	find(name) {

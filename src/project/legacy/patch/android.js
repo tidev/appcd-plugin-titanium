@@ -1,3 +1,5 @@
+/* eslint-disable promise/no-callback-in-promise */
+
 import tunnel from '../tunnel';
 import * as version from '../../../lib/version';
 
@@ -8,7 +10,7 @@ export function detect(config = {}, opts = {}, callback) {
 				devices:            info.devices,
 				emulators:          info.emulators,
 				issues:             [],
-				ndk:                processSDK(info.ndk),
+				ndk:                processNDK(info.ndk),
 				sdk:                processSDK(info.sdk, config, opts.vendorDependencies),
 				targets:            results.targets,
 				vendorDependencies: opts.vendorDependencies || {}
@@ -25,6 +27,7 @@ export function detect(config = {}, opts = {}, callback) {
 }
 
 function processNDK(ndks) {
+	// TODO
 	return null;
 }
 

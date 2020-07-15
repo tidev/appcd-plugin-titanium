@@ -1,3 +1,5 @@
+/* eslint-disable promise/no-callback-in-promise */
+
 import fs from 'fs-extra';
 import getOSInfo from '../../../lib/os';
 import path from 'path';
@@ -14,7 +16,47 @@ import { snooplogg } from 'cli-kit';
 
 const { highlight, gray, green, magenta, red, yellow } = snooplogg.styles;
 
+/**
+ * The legacy Titanium CLI version. Since this legacy shim is intended to simulate the Titanium CLI
+ * v5, we keep the major as `5`, but set the minor to something high that will never exist.
+ */
 const CLI_VERSION = '5.999.0';
+
+/**
+ * A helper function that creates an error and defines an optional code and prompt metadata.
+ *
+ * @param {Object} opts - Various options.
+ * @param {String} [opts.code] - A custom error code. This value should begin with an `E`.
+ * @param {String} opts.message - The error message.
+ * @param {Object} [opts.option] - A CLI option to autogenerate the prompt metadata from.
+ * @param {Object} [opts.prompt] - Prompt metadata.
+ * @returns {Error}
+ */
+function INVALID_ARGUMENT({ code, msg, option, prompt }) {
+	const err = new TypeError(msg);
+	if (code !== undefined) {
+		err.code = code;
+	}
+	if (option?.values) {
+		err.prompt = {
+			choices:  option.values.map(value => ({ value })),
+			message:  `Please select a valid ${option.name} value`,
+			name:     option.name,
+			required: true,
+			type:     'select'
+		};
+	} else if (option) {
+		err.prompt = {
+			message:  `Please enter a valid ${option.name}`,
+			name:     option.name,
+			required: true,
+			type:     'text'
+		};
+	} else if (prompt !== undefined) {
+		err.prompt = prompt;
+	}
+	return err;
+}
 
 /**
  * The Titanium CLI v5 requires the `--sdk <version>` to equal the `<sdk-version>` in the
@@ -32,10 +74,31 @@ class GracefulShutdown extends Error {}
  * Command specific data including the command module and configuration.
  */
 class Context {
+	/**
+	 * A legacy Titanium CLI version.
+	 * @type {String}
+	 */
 	cliVersion = CLI_VERSION;
 
+	/**
+	 * A reference to the associated platform-specific context. This is only used for the `build`
+	 * command.
+	 * @type {Context}
+	 */
 	platform = null;
 
+	/**
+	 * Initializes the context and validates that the command JS file exists.
+	 *
+	 * @param {Object} opts - Various options.
+	 * @param {Object} [opts.conf] - The command's configuration. This is used when the `build`
+	 * command initializes a platform-specific context.
+	 * @param {String} opts.name - The command name.
+	 * @param {Context} [opts.parent] - A reference to the parent context. This is used to
+	 * associate a platform-specific context with the `build` command context.
+	 * @param {String} opts.path - The path to the command JS file.
+	 * @access public
+	 */
 	constructor({ conf, name, parent, path }) {
 		this.conf   = conf || {};
 		this.name   = name;
@@ -47,8 +110,17 @@ class Context {
 		}
 	}
 
+	/**
+	 * Loads a command JS file and if the command is the `build` command, it also initializes the
+	 * platform-specific context.
+	 *
+	 * @param {CLI} cli - A reference to the main CLI instance.
+	 * @returns {Promise}
+	 * @access public
+	 */
 	async load(cli) {
 		tunnel.log(`Loading command file: ${highlight(this.path)}`);
+		// eslint-disable-next-line security/detect-non-literal-require
 		this.module = require(this.path);
 
 		if (this.module.cliVersion && !version.satisfies(this.cliVersion, this.module.cliVersion)) {
@@ -73,16 +145,17 @@ class Context {
 		// specific command
 		const { platform } = cli.argv;
 		if (!platform) {
-			const err = new TypeError('Missing required "platform"');
-			err.code = 'EPLATFORM';
-			err.prompt = {
-				choices: this.conf.options.platform.values.map(platform => ({ value: platform })),
-				message: 'For which platform do you want to build?',
-				name: 'platform',
-				required: true,
-				type: 'select'
-			};
-			throw err;
+			throw INVALID_ARGUMENT({
+				msg: 'Missing required "platform"',
+				code: 'EPLATFORM',
+				prompt: {
+					choices:  this.conf.options.platform.values.map(platform => ({ value: platform })),
+					message:  'For which platform do you want to build?',
+					name:     'platform',
+					required: true,
+					type:     'select'
+				}
+			});
 		}
 
 		// `this.conf.platforms` is an object of platform names to platform-specific options
@@ -121,8 +194,7 @@ export default class CLI {
 	static HOOK_PRIORITY_DEFAULT = 1000;
 
 	/**
-	 * The Titanium CLI version. Since this legacy shim is intended to simulate the Titanium CLI
-	 * v5, we keep the major as `5`, but set the minor to something high that will never exist.
+	 * The legacy Titanium CLI version.
 	 * @type {String}
 	 */
 	version = CLI_VERSION;
@@ -155,7 +227,7 @@ export default class CLI {
 	};
 
 	/**
-	 * The logger object.
+	 * The legacy Titanium CLI logger object. The original supports log levels, this one does not.
 	 * @type {Object}
 	 */
 	logger = {
@@ -284,10 +356,28 @@ export default class CLI {
 		tunnel.call('/telemetry', { event: type === 'ti.apiusage' ? type : event, ...data });
 	}
 
+	/**
+	 * An alias for `on()`.
+	 *
+	 * @param {*} ...args - An event name and callback.
+	 * @returns {CLI}
+	 * @deprecated
+	 * @access public
+	 */
 	addHook(...args) {
 		return this.on(...args);
 	}
 
+	/**
+	 * Defines a hook function that will emit an event before and after the hooked function is
+	 * invoked.
+	 *
+	 * @param {String} name - The name of hook event.
+	 * @param {Object} [ctx] - The `this` context to bind the callbacks to.
+	 * @param {Function} [fn] - The function being hooked.
+	 * @returns {Function}
+	 * @access public
+	 */
 	createHook(name, ctx, fn) {
 		let dataPayload = {};
 
@@ -315,23 +405,22 @@ export default class CLI {
 				.then(async () => {
 					// call all pre filters
 					await pres
-						.reduce((promise, pre) => {
-							return promise.then(() => new Promise((resolve, reject) => {
-								if (pre.length >= 2) {
-									pre.call(ctx, data, (err, newData) => {
-										if (err) {
-											return reject(err);
-										} else if (newData) {
-											data = newData;
-										}
-										resolve();
-									});
-								} else {
-									pre.call(ctx, data);
+						// eslint-disable-next-line promise/no-nesting
+						.reduce((promise, pre) => promise.then(() => new Promise((resolve, reject) => {
+							if (pre.length >= 2) {
+								pre.call(ctx, data, (err, newData) => {
+									if (err) {
+										return reject(err);
+									} else if (newData) {
+										data = newData;
+									}
 									resolve();
-								}
-							}));
-						}, Promise.resolve());
+								});
+							} else {
+								pre.call(ctx, data);
+								resolve();
+							}
+						})), Promise.resolve());
 
 					if (data.fn) {
 						data.result = await new Promise((resolve, reject) => {
@@ -345,6 +434,7 @@ export default class CLI {
 
 					// call all post filters
 					await posts
+						// eslint-disable-next-line promise/no-nesting
 						.reduce((promise, post) => promise.then(() => new Promise((resolve, reject) => {
 							if (post.length >= 2) {
 								post.call(ctx, data, (err, newData) => {
@@ -386,24 +476,31 @@ export default class CLI {
 		};
 	}
 
-	emit(hookNames, data, callback) {
+	/**
+	 * Emits an event along with a data payload.
+	 *
+	 * @param {String|Array.<String>} name - One or more events to emit.
+	 * @param {Object} [data] - An optional data payload.
+	 * @param {Function} [callback] A function to call once the emitting has finished. If no
+	 * callback is specified, this function will return a promise instead.
+	 * @returns {CLI|Promise}
+	 * @access public
+	 */
+	emit(name, data, callback) {
 		if (typeof data === 'function') {
 			callback = data;
 			data = null;
 		}
 
-		// make sure hookNames is an array
-		hookNames = unique(hookNames);
-
 		// create each hook and immediately fire them
-		const promise = hookNames
+		const promise = unique(name)
 			.reduce((promise, name) => promise.then(() => new Promise((resolve, reject) => {
 				const hook = this.createHook(name, data);
 				tunnel.log(`Emitting ${name}`);
 				hook((err, result) => {
 					err ? reject(err) : resolve(result);
 				});
-			})), Promise.resolve());
+			})), Promise.resolve(this));
 
 		if (typeof callback !== 'function') {
 			return promise;
@@ -416,6 +513,12 @@ export default class CLI {
 		return this;
 	}
 
+	/**
+	 * Executes the command's `run()` method.
+	 *
+	 * @returns {Promise}
+	 * @access private
+	 */
 	async executeCommand() {
 		await this.emit('cli:pre-execute', { cli: this, command: this.command });
 
@@ -456,10 +559,24 @@ export default class CLI {
 		});
 	}
 
+	/**
+	 * An alias for `emit()`.
+	 *
+	 * @param {*} ...args - The hook names, data, and callback.
+	 * @returns {CLI}
+	 * @deprecated
+	 * @access public
+	 */
 	fireHook(...args) {
 		return this.emit(...args);
 	}
 
+	/**
+	 * The main pipeline for running the CLI.
+	 *
+	 * @returns {Promise}
+	 * @access public
+	 */
 	async go() {
 		await this.emit('cli:go', { cli: this });
 		await this.command.load(this);
@@ -468,6 +585,13 @@ export default class CLI {
 		await this.executeCommand();
 	}
 
+	/**
+	 * Creates a legacy Titanium CLI config object from the Titanium plugin config.
+	 *
+	 * @param {Object} config - The Titanium plugin config.
+	 * @returns {Object}
+	 * @access private
+	 */
 	initConfig(config) {
 		return Object.defineProperties(
 			mergeDeep({
@@ -516,6 +640,14 @@ export default class CLI {
 		);
 	}
 
+	/**
+	 * Registers an event callback.
+	 *
+	 * @param {String} name - The name of the event.
+	 * @param {Function} callback - The listener to register.
+	 * @returns {CLI}
+	 * @access public
+	 */
 	on(name, callback) {
 		let priority = CLI.HOOK_PRIORITY_DEFAULT;
 		let i;
@@ -529,6 +661,7 @@ export default class CLI {
 		if (callback.pre) {
 			const h = this.hooks.pre[name] || (this.hooks.pre[name] = []);
 			callback.pre.priority = priority;
+			// eslint-disable-next-line no-empty
 			for (i = 0; i < h.length && priority >= h[i].priority; i++) {}
 			h.splice(i, 0, callback.pre);
 		}
@@ -536,6 +669,7 @@ export default class CLI {
 		if (callback.post) {
 			const h = this.hooks.post[name] || (this.hooks.post[name] = []);
 			callback.post.priority = priority;
+			// eslint-disable-next-line no-empty
 			for (i = 0; i < h.length && priority >= h[i].priority; i++) {}
 			h.splice(i, 0, callback.post);
 		}
@@ -604,14 +738,96 @@ export default class CLI {
 		}
 	}
 
+	/**
+	 * Validates the arguments. First it checks against the built-in naive validation such as
+	 * required or against a list of values. Next it calls each option's validator. After that it
+	 * calls the command's validator. Lastly it calls each option's value callback.
+	 *
+	 * @returns {Promise}
+	 * @access private
+	 */
 	async validate() {
 		await this.emit('cli:pre-validate', { cli: this, command: this.command });
 
+		// step 0: build a list of all options so we can sort them
+		const options = [];
+		for (const ctx of [ this.command, this.command?.platform ]) {
+			if (ctx?.conf.options) {
+				for (const [ name, opt ] of Object.entries(ctx.conf.options)) {
+					options.push({
+						// this is a sacrificial wrapper that we can throw away after firing and it
+						// handles the boilerplate of checking the callback and result
+						callback(value) {
+							let result;
+							if (typeof opt.callback === 'function') {
+								// technically `opt.callback()` can throw a `GracefulShutdown` error
+								// for both `build` and `clean` commands during the `project-dir`
+								// callback if the `<sdk-version>` in the tiapp.xml is not the same
+								// version loaded by the Titanium SDK, but luckily that will never :)
+								result = opt.callback(value || '');
+							}
+							delete this.callback;
+							return result !== undefined ? result : value;
+						},
+						name,
+						order:            opt.order,
+						required:         opt.required,
+						validate:         opt.validate,
+						values:           !opt.skipValueCheck && Array.isArray(opt.values) ? opt.values : null,
+						verifyIfRequired: opt.verifyIfRequired
+					});
+				}
+			}
+		}
+
+		options.sort((a, b) => ~~b.order - ~~a.order);
+
 		// step 1: determine invalid or missing options
+		for (const opt of options) {
+			const { name } = opt;
+			const value = this.argv[name];
 
-		// step 2: determine all missing arguments
+			if (value !== undefined && opt.values && !opt.values.includes(value)) {
+				throw INVALID_ARGUMENT({
+					msg: `Invalid ${name} value "${value}"`,
+					option: opt
+				});
+			}
 
-		// step 3: run the command's validate() function, if exists
+			if (value !== undefined) {
+				if (typeof opt.validate === 'function') {
+					await new Promise((resolve, reject) => {
+						opt.validate(value, (err, value) => {
+							if (err) {
+								return reject(INVALID_ARGUMENT({
+									msg: `Invalid ${name} value "${value}"`,
+									option: opt
+								}));
+							}
+
+							this.argv[name] = opt.callback(value);
+							resolve();
+						});
+					});
+				} else {
+					this.argv[name] = opt.callback(value);
+				}
+
+			// we need to check if the option is required
+			// sometimes required options such as `--device-id` allow an undefined value in the
+			// case when the value is derived by the config or is autoselected
+			} else if (opt.required && (typeof opt.verifyIfRequired !== 'function' || await new Promise(opt.verifyIfRequired))) {
+				throw INVALID_ARGUMENT({
+					msg: `Missing required option: ${name}`,
+					option: opt
+				});
+			}
+		}
+
+		// note that we don't care about missing arguments because `build` and `clean` commands
+		// don't have any arguments!
+
+		// step 2: run the command's validate() function, if exists
 
 		const { validate } = this.command.module;
 		if (validate && typeof validate === 'function') {
@@ -625,16 +841,12 @@ export default class CLI {
 
 		await this.emit('cli:post-validate', { cli: this, command: this.command });
 
-		// step 4: fire all option callbacks
-		for (const ctx of [ this.command, this.command?.platform ]) {
-			if (ctx) {
-				for (const [ name, opt ] of Object.entries(ctx.conf.options)) {
-					if (typeof opt.callback === 'function') {
-						const val = opt.callback(this.argv[name] || '');
-						if (val !== undefined) {
-							this.argv[name] = val;
-						}
-					}
+		// step 3: fire all option callbacks for any options we missed above
+		for (const opt of options) {
+			if (typeof opt.callback === 'function') {
+				const val = opt.callback(this.argv[opt.name] || '');
+				if (val !== undefined) {
+					this.argv[opt.name] = val;
 				}
 			}
 		}
