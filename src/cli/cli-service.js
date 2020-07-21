@@ -44,6 +44,11 @@ export default class CLIService extends Dispatcher {
 			options: {
 				'--no-prompt': 'Disable interactive prompting'
 			},
+			styles: {
+				subheading(s) {
+					return `\n${String(s).toUpperCase()}`;
+				}
+			},
 			version: ({ data }) => parseVersion(data.userAgent)
 		});
 
@@ -100,7 +105,7 @@ export default class CLIService extends Dispatcher {
 							}
 
 							if (Object.keys(options).length) {
-								buildOptions.push(conf.title, options);
+								buildOptions.push(`${conf.title} build options`, options);
 							}
 						}
 
@@ -108,7 +113,6 @@ export default class CLIService extends Dispatcher {
 					}
 
 					if (buildOptions.length) {
-						log(buildOptions);
 						ctx.option(buildOptions);
 					}
 				});
