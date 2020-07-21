@@ -1,11 +1,20 @@
 /* eslint-disable promise/no-callback-in-promise */
 
 import tunnel from '../tunnel';
-import * as version from '../../../lib/version';
+import * as version from '../../lib/version';
+import { snooplogg } from 'cli-kit';
+
+const { alert } = snooplogg.styles;
+
+let cache;
 
 export function detect(opts = {}, callback) {
-	tunnel.call('/ios/1.x/info')
-		.then(info => {
+	if (cache) {
+		return callback(null, cache);
+	}
+
+	tunnel.call('/ios/2.x/info')
+		.then(({ response: info }) => {
 			const results = {
 				certs:         {},
 				devices:       info.devices,
@@ -22,11 +31,12 @@ export function detect(opts = {}, callback) {
 			processProvisioning(info, results);
 			processXcodes(info, results, opts);
 
+			cache = results;
 			callback(null, results);
 		})
 		.catch(err => {
-			console.error(err);
-			callback();
+			tunnel.log(alert(err.stack));
+			callback(err);
 		});
 }
 

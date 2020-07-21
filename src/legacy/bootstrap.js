@@ -8,6 +8,7 @@ if (!process.connected) {
 	process.exit(2);
 }
 
+import 'v8-compile-cache';
 import 'colors';
 import './patch';
 import './tunnel';

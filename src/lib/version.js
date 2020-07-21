@@ -63,3 +63,33 @@ export function satisfies(ver, str) {
 		return range === '*' || semver.satisfies(ver, range) || (ver.indexOf('-') === -1 && semver.satisfies(ver + '-0', range));
 	});
 }
+
+export function parseMax(str, allowX) {
+	let max, lt;
+
+	for (const range of str.split(/\s*\|\|\s*/)) {
+		let x = range.split(' ');
+		x = x.length === 1 ? x.shift() : x.slice(1).shift();
+		allowX || (x = x.replace(/.x$/i, ''));
+		const y = x.replace(allowX ? /[^.xX\d]/g : /[^.\d]/g, '');
+		if (!max || exports.gt(y, max)) {
+			lt = /^<[^=]\d/.test(x);
+			max = y.replace(/\.$/, '');
+		}
+	}
+
+	return (lt ? '<' : '') + max;
+}
+
+export function parseMin(str) {
+	let min;
+
+	for (const range of str.split(/\s*\|\|\s*/)) {
+		const x = range.split(' ').shift().replace(/[^.\d]/g, '');
+		if (!min || exports.lt(x, min)) {
+			min = x.replace(/\.$/, '');
+		}
+	}
+
+	return min;
+}

@@ -11,9 +11,9 @@ export default {
 		await promptLoop({
 			ctx,
 			data: {
-				force:        ctx.argv.force,
-				platform:     ctx.argv.platform,
-				projectDir:   ctx.argv.projectDir
+				force:      ctx.argv.force,
+				platform:   ctx.argv.platform,
+				projectDir: ctx.argv.projectDir
 			},
 			path: '/project/build',
 			ns: 'cli:build'

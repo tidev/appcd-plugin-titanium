@@ -1,4 +1,14 @@
 /**
+ * Capitalizes a string.
+ *
+ * @param {String} str - The string to capitalize.
+ * @returns {String}
+ */
+export function capitalize(str) {
+	return typeof str === 'string' ? `${str[0].toUpperCase()}${str.substring(1)}` : str;
+}
+
+/**
  * Parses the Titanium CLI version from the user agent.
  *
  * @param {String} userAgent - The Titanium CLI user agent.

@@ -1,62 +1,22 @@
 /* eslint-disable promise/no-callback-in-promise */
 
+import Context from './context';
 import fs from 'fs-extra';
-import getOSInfo from '../../../lib/os';
+import getOSInfo from '../../lib/os';
 import path from 'path';
 import tunnel from '../tunnel';
 import vm from 'vm';
-import * as version from '../../../lib/version';
+import * as version from '../../lib/version';
 
+import { CLI_VERSION } from './version';
 import { expandPath } from 'appcd-path';
 import { format } from 'util';
 import { get, mergeDeep, set, unique } from 'appcd-util';
-import { isFile } from 'appcd-fs';
+import { INVALID_ARGUMENT } from './error';
 import { sdk } from 'titaniumlib';
 import { snooplogg } from 'cli-kit';
 
-const { highlight, gray, green, magenta, red, yellow } = snooplogg.styles;
-
-/**
- * The legacy Titanium CLI version. Since this legacy shim is intended to simulate the Titanium CLI
- * v5, we keep the major as `5`, but set the minor to something high that will never exist.
- */
-const CLI_VERSION = '5.999.0';
-
-/**
- * A helper function that creates an error and defines an optional code and prompt metadata.
- *
- * @param {Object} opts - Various options.
- * @param {String} [opts.code] - A custom error code. This value should begin with an `E`.
- * @param {String} opts.message - The error message.
- * @param {Object} [opts.option] - A CLI option to autogenerate the prompt metadata from.
- * @param {Object} [opts.prompt] - Prompt metadata.
- * @returns {Error}
- */
-function INVALID_ARGUMENT({ code, msg, option, prompt }) {
-	const err = new TypeError(msg);
-	if (code !== undefined) {
-		err.code = code;
-	}
-	if (option?.values) {
-		err.prompt = {
-			choices:  option.values.map(value => ({ value })),
-			message:  `Please select a valid ${option.name} value`,
-			name:     option.name,
-			required: true,
-			type:     'select'
-		};
-	} else if (option) {
-		err.prompt = {
-			message:  `Please enter a valid ${option.name}`,
-			name:     option.name,
-			required: true,
-			type:     'text'
-		};
-	} else if (prompt !== undefined) {
-		err.prompt = prompt;
-	}
-	return err;
-}
+const { gray, green, magenta, red, yellow } = snooplogg.styles;
 
 /**
  * The Titanium CLI v5 requires the `--sdk <version>` to equal the `<sdk-version>` in the
@@ -69,118 +29,6 @@ function INVALID_ARGUMENT({ code, msg, option, prompt }) {
  * isn't used, but just in case, we'll define it and set it on the `CLI` instance.
  */
 class GracefulShutdown extends Error {}
-
-/**
- * Command specific data including the command module and configuration.
- */
-class Context {
-	/**
-	 * A legacy Titanium CLI version.
-	 * @type {String}
-	 */
-	cliVersion = CLI_VERSION;
-
-	/**
-	 * A reference to the associated platform-specific context. This is only used for the `build`
-	 * command.
-	 * @type {Context}
-	 */
-	platform = null;
-
-	/**
-	 * Initializes the context and validates that the command JS file exists.
-	 *
-	 * @param {Object} opts - Various options.
-	 * @param {Object} [opts.conf] - The command's configuration. This is used when the `build`
-	 * command initializes a platform-specific context.
-	 * @param {String} opts.name - The command name.
-	 * @param {Context} [opts.parent] - A reference to the parent context. This is used to
-	 * associate a platform-specific context with the `build` command context.
-	 * @param {String} opts.path - The path to the command JS file.
-	 * @access public
-	 */
-	constructor({ conf, name, parent, path }) {
-		this.conf   = conf || {};
-		this.name   = name;
-		this.parent = parent;
-		this.path   = path;
-
-		if (!isFile(this.path)) {
-			throw new Error(`Command file not found: ${path}`);
-		}
-	}
-
-	/**
-	 * Loads a command JS file and if the command is the `build` command, it also initializes the
-	 * platform-specific context.
-	 *
-	 * @param {CLI} cli - A reference to the main CLI instance.
-	 * @returns {Promise}
-	 * @access public
-	 */
-	async load(cli) {
-		tunnel.log(`Loading command file: ${highlight(this.path)}`);
-		// eslint-disable-next-line security/detect-non-literal-require
-		this.module = require(this.path);
-
-		if (this.module.cliVersion && !version.satisfies(this.cliVersion, this.module.cliVersion)) {
-			throw new Error(`Command "${this.name}" is incompatible with this version of the Titanium CLI`);
-		}
-
-		if (typeof this.module.run !== 'function') {
-			throw new Error(`Command "${this.name}" does not contain a valid run function`);
-		}
-
-		this.conf = typeof this.module.config === 'function' ? this.module.config(cli.logger, cli.config, cli) : {};
-		if (typeof this.conf === 'function') {
-			this.conf = await new Promise(resolve => this.conf(resolve));
-		}
-
-		if (this.name !== 'build') {
-			return;
-		}
-
-		// the `build` command `--platform` option was hard wired into the CLI context, so
-		// unfortunately we need to do a bunch of `build` specific logic to load the platform
-		// specific command
-		const { platform } = cli.argv;
-		if (!platform) {
-			throw INVALID_ARGUMENT({
-				msg: 'Missing required "platform"',
-				code: 'EPLATFORM',
-				prompt: {
-					choices:  this.conf.options.platform.values.map(platform => ({ value: platform })),
-					message:  'For which platform do you want to build?',
-					name:     'platform',
-					required: true,
-					type:     'select'
-				}
-			});
-		}
-
-		// `this.conf.platforms` is an object of platform names to platform-specific options
-		if (this.conf.platforms && Object.prototype.hasOwnProperty.call(this.conf.platforms, platform)) {
-			const platformConf = this.conf.platforms[platform];
-
-			this.platform = new Context({
-				conf:   platformConf,
-				name:   platform,
-				parent: this,
-				path:   path.join(cli.sdk.path, platform)
-			});
-
-			this.platforms = {
-				[this.platform.name]: this.platform
-			};
-
-			cli.argv.platform = this.platform.name; // I think this is to normalize `iphone` to `ios`
-			cli.argv.$platform = platform;
-
-			// find all platform hooks
-			cli.scanHooks(path.join(cli.sdk.path, this.platform.name, 'cli', 'hooks'));
-		}
-	}
-}
 
 /**
  * Controls the state and flow for running legacy Titanium SDK CLI commands such as `build` and
@@ -292,8 +140,10 @@ export default class CLI {
 		this.argv = {
 			$command: opts.command,
 		};
-		for (const [ key, value ] of Object.entries(opts.argv)) {
-			this.argv[key] = this.argv[key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)] = value;
+		if (opts.argv) {
+			for (const [ key, value ] of Object.entries(opts.argv)) {
+				this.argv[key] = this.argv[key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`)] = value;
+			}
 		}
 
 		// initialize the legacy environment info
@@ -334,6 +184,7 @@ export default class CLI {
 			throw new Error(`Invalid command "${cmd}"`);
 		}
 		this.command = this.cmds[cmd] = new Context({
+			cli: this,
 			name: cmd,
 			path: path.join(this.sdk.path, 'cli', 'commands', `${cmd}.js`)
 		});
@@ -579,7 +430,7 @@ export default class CLI {
 	 */
 	async go() {
 		await this.emit('cli:go', { cli: this });
-		await this.command.load(this);
+		await this.command.load(true);
 		await this.emit('cli:command-loaded', { cli: this, command: this.command });
 		await this.validate();
 		await this.executeCommand();

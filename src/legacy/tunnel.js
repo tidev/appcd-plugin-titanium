@@ -1,5 +1,5 @@
 import CLI from './ti/cli';
-import uuid from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * A simple state manager for sending and receiving requests to the parent process.
@@ -22,9 +22,19 @@ class Tunnel {
 		process.on('message', async data => {
 			const { id, type } = data;
 
-			if (type === 'exec') {
+			if (type === 'exec' || type === 'build-options') {
 				try {
-					await new CLI(data).go();
+					const cli = new CLI(data);
+
+					if (type === 'exec') {
+						await cli.go();
+					} else {
+						await cli.command.load();
+						process.send({
+							data: cli.command.conf,
+							type: 'json'
+						});
+					}
 
 					// the command is complete, but the IPC channel is still open, so we simply disconnect it and
 					// this process should exit whenever the command finishes
@@ -72,7 +82,7 @@ class Tunnel {
 	 */
 	call(path, data) {
 		return new Promise((resolve, reject) => {
-			const id = uuid.v4();
+			const id = uuidv4();
 			this.pending[id] = { resolve, reject };
 			process.send({
 				data,
