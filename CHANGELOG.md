@@ -7,16 +7,24 @@
    instead.
  * BREAKING CHANGE(config): Write operations such as `set` return `"OK"` instead of `"Saved"`.
  * feat(info): Added `filter` argument to `ti info`.
- * feat(project): Added project service handler.
+ * feat(project): Project service with endpoints for `new`, `build`, `run`, `clean`, and info.
    [(DAEMON-26)](https://jira.appcelerator.org/browse/DAEMON-26)
- * feat(cli): Added `new` command. [(DAEMON-321)](https://jira.appcelerator.org/browse/DAEMON-321)
+   [(DAEMON-21)](https://jira.appcelerator.org/browse/DAEMON-21)
+ * feat(cli): Added `new` command. [(DAEMON-301)](https://jira.appcelerator.org/browse/DAEMON-301)
+ * feat(cli): Added `clean` command.
+   [(DAEMON-327)](https://jira.appcelerator.org/browse/DAEMON-327)
+ * feat(cli): Added `build` and `run` commands.
+   [(DAEMON-16)](https://jira.appcelerator.org/browse/DAEMON-16)
  * feat(cli): Added auth commands `login`, `logout`, `whoami`, and `switch`.
    [(DAEMON-300)](https://jira.appcelerator.org/browse/DAEMON-300)
+ * feat(legacy): Legacy Titanium CLI bootstrap for loading a Titanium SDK and running a `build` or
+   `clean` command. For differences between this and Titanium CLI v5, see the
+   [readme](https://github.com/appcelerator/appcd-plugin-titanium/blob/master/src/legacy/README.md).
  * feat(cli:sdk): Added aliases to sdk commands (i, ls, rm).
  * feat(sdk): Added `find` endpoint to SDK service to get info about an installed Titanium SDK.
  * feat(sdk): Added progress bars during SDK installation.
- * feat(project): Added legacy Titanium CLI command bootstrap.
- * refactor: Updated to cli-kit@0.14.0 adding support for the new client/server architecture.
+ * feat: Support for Titanium-specific telemetry.
+ * refactor: Updated to latest cli-kit with support for the new client/server architecture.
  * refactor: Updated `config` command actions to be subcommands with improved help output.
  * chore: Added plugin API version 2.x.
  * chore: Transpile for Node 10 instead of Node 8. Not a breaking change as appcd has always
