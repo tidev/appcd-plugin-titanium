@@ -191,6 +191,7 @@ export default class CLI {
 
 		// initialize the hooks
 		unique(this.config.paths.hooks).forEach(this.scanHooks.bind(this));
+		this.scanHooks(path.resolve(__dirname, '..', 'hooks'));
 		this.scanHooks(path.join(this.sdk.path, 'cli', 'hooks'));
 	}
 
@@ -379,7 +380,7 @@ export default class CLI {
 		let done = 0;
 
 		await new Promise((resolve, reject) => {
-			tunnel.log(`Executing ${this.command.name} run`);
+			tunnel.log(`Executing ${this.command.name}`);
 
 			run(this.logger, this.config, this, async (err, result) => {
 				if (done++) {

@@ -4,7 +4,7 @@ export default {
 		'--json': 'Outputs accounts as JSON'
 	},
 	async action({ argv, console }) {
-		let { response: accounts } = await appcd.call('/amplify/1.x/auth');
+		const { response: accounts } = await appcd.call('/amplify/1.x/auth');
 
 		if (!accounts.length) {
 			console.log('No authenticated accounts.');

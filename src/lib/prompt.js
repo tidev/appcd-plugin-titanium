@@ -23,7 +23,7 @@ export function prompt(questions, { stdin, stdout } = {}) {
 
 	for (let i = 0, len = questions.length; i < len; i++) {
 		questions[i] = {
-			format() {
+			format: questions[i].type === 'toggle' ? undefined : function () {
 				// for some reason, enquirer doesn't print the selected value using the primary
 				// (green) color for select prompts, so we just force it for all prompts
 				return this.style(this.value);
@@ -109,7 +109,10 @@ export async function promptLoop({ ctx, data, footer, header, ns, path, print })
 			while (ask) {
 				result = await prompt({
 					validate(value) {
-						return !!value || !this.required || ask.validateMessage || false;
+						if (this.type === 'toggle' || !this.required || !!value) {
+							return true;
+						}
+						return ask.validateMessage || false;
 					},
 					name: ask.name || name,
 					...ask

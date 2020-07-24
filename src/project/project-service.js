@@ -5,6 +5,9 @@ import TemplateService from './templates-service';
 import { AppcdError, codes } from 'appcd-response';
 import { Project } from 'titaniumlib';
 import { spawnLegacyCLI } from '../legacy/spawn';
+import { validate as validateAppPreview } from '../lib/app-preview';
+
+const { alert } = appcd.logger.styles;
 
 /**
  * Service for creating and building Titanium applications.
@@ -82,6 +85,17 @@ export default class ProjectService extends Dispatcher {
 				throw new AppcdError(codes.BAD_REQUEST, 'Current working directory required when project directory is relative');
 			}
 			projectDir = path.resolve(cwd, projectDir || '.');
+		}
+
+		if (command === 'build' || command === 'run') {
+			try {
+				await validateAppPreview(ctx.request.data);
+			} catch (err) {
+				if (err.code === 'ENOTENT') {
+					return `${alert(err.toString())}\n\n${err.details}\n`;
+				}
+				throw err;
+			}
 		}
 
 		const project = new Project({

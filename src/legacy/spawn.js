@@ -1,7 +1,7 @@
 import path from 'path';
 import { spawn } from 'appcd-subprocess';
 
-const { log } = appcd.logger('legacy:spawn');
+const { log } = appcd.logger('legacy');
 
 /**
  * Spawns the Legacy CLI and resolves once the command finishes.

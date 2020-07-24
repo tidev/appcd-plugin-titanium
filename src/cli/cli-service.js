@@ -63,7 +63,7 @@ export default class CLIService extends Dispatcher {
 					return;
 				}
 
-				cmd.on('generateHelp', async ({ ctx }) => {
+				cmd.on('generateHelp', async ctx => {
 					// const tiapp = new Tiapp({ file: tiappFile });
 					// const sdk = tiapp.get('sdk-version');
 					const sdk = '9.0.3.GA';
