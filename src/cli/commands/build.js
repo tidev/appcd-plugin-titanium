@@ -1,5 +1,4 @@
-import { options as appPreviewOptions } from '../../lib/app-preview';
-import { promptLoop } from '../../lib/prompt';
+import { runLegacyCLI } from '../run-legacy';
 
 export default {
 	desc: 'Builds a project',
@@ -8,18 +7,9 @@ export default {
 			'-d, --project-dir [path]': 'The directory containing the project; defaults to the current directory',
 			'-f, --force':              'Force a full rebuild',
 			'-p, --platform [name]':    'The target build platform'
-		},
-		...appPreviewOptions
+		}
 	],
 	async action(ctx) {
-		await promptLoop({
-			ctx,
-			data: {
-				...ctx.argv,
-				cwd: ctx.data.cwd
-			},
-			path: '/project/build',
-			ns:   'cli:build'
-		});
+		await runLegacyCLI('build', ctx);
 	}
 };

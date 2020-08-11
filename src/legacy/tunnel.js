@@ -22,7 +22,7 @@ class Tunnel {
 		process.on('message', async data => {
 			const { id, type } = data;
 
-			if (type === 'exec' || type === 'build-options') {
+			if (type === 'exec' || type === 'help') {
 				try {
 					const cli = new CLI(data);
 

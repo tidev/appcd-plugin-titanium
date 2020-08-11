@@ -16,7 +16,7 @@ import { INVALID_ARGUMENT } from './error';
 import { sdk } from 'titaniumlib';
 import { snooplogg } from 'cli-kit';
 
-const { gray, green, magenta, red, yellow } = snooplogg.styles;
+const { gray, green, highlight, magenta, red, yellow } = snooplogg.styles;
 
 /**
  * The Titanium CLI v5 requires the `--sdk <version>` to equal the `<sdk-version>` in the
@@ -287,21 +287,23 @@ export default class CLI {
 					// call all post filters
 					await posts
 						// eslint-disable-next-line promise/no-nesting
-						.reduce((promise, post) => promise.then(() => new Promise((resolve, reject) => {
+						.reduce((promise, post) => promise.then(async () => {
 							if (post.length >= 2) {
-								post.call(ctx, data, (err, newData) => {
-									if (err) {
-										return reject(err);
-									} else if (newData && typeof newData === 'object' && newData.type) {
-										data = newData;
-									}
-									resolve();
+								await new Promise((resolve, reject) => {
+									post.call(ctx, data, (err, newData) => {
+										if (err) {
+											return reject(err);
+										}
+										if (newData && typeof newData === 'object' && newData.type) {
+											data = newData;
+										}
+										resolve();
+									});
 								});
 							} else {
 								post.call(ctx, data);
-								resolve();
 							}
-						})), Promise.resolve());
+						}), Promise.resolve());
 
 					const { callback } = data;
 					if (typeof callback === 'function') {
@@ -318,6 +320,7 @@ export default class CLI {
 				.catch(err => {
 					// this is the primary error handler
 					if (typeof data.callback === 'function') {
+						tunnel.log(err.stack);
 						data.callback(err);
 					} else {
 						console.log('Hook completion callback threw unhandled error:');
@@ -380,7 +383,7 @@ export default class CLI {
 		let done = 0;
 
 		await new Promise((resolve, reject) => {
-			tunnel.log(`Executing ${this.command.name}`);
+			tunnel.log(`Executing ${highlight(this.command.name)}`);
 
 			run(this.logger, this.config, this, async (err, result) => {
 				if (done++) {
@@ -434,7 +437,7 @@ export default class CLI {
 		await this.command.load(true);
 		await this.emit('cli:command-loaded', { cli: this, command: this.command });
 		await this.validate();
-		await this.executeCommand();
+		// await this.executeCommand();
 	}
 
 	/**
@@ -537,6 +540,7 @@ export default class CLI {
 	 */
 	scanHooks(dir) {
 		dir = expandPath(dir);
+		tunnel.log(`Scanning hooks: ${highlight(dir)}`);
 
 		if (this.hooks.scannedPaths[dir]) {
 			return;
@@ -544,7 +548,7 @@ export default class CLI {
 
 		try {
 			// eslint-disable-next-line security/detect-non-literal-require
-			const appc = require(path.join(this.argv.sdkPath, 'node_modules', 'node-appc'));
+			const appc = require(path.join(this.sdk.path, 'node_modules', 'node-appc'));
 			const jsfile = /\.js$/;
 			const ignore = /^[._]/;
 			const files = fs.statSync(dir).isDirectory() ? fs.readdirSync(dir).map(n => path.join(dir, n)) : [ dir ];
@@ -552,6 +556,7 @@ export default class CLI {
 			for (const file of files) {
 				try {
 					if (fs.statSync(file).isFile() && jsfile.test(file) && !ignore.test(path.basename(path.dirname(file)))) {
+						tunnel.log(`Checking hook: ${highlight(file)}`);
 						// test the file for syntax errors
 						vm.runInThisContext(`(function (exports, require, module, __filename, __dirname){${fs.readFileSync(file).toString()}\n});`, file, 0, false);
 
@@ -575,7 +580,7 @@ export default class CLI {
 						if (!this.version || !mod.cliVersion || version.satisfies(this.version, mod.cliVersion)) {
 							mod.init && mod.init(this.logger, this.config, this, appc);
 							this.hooks.loadedFilenames.push(file);
-							console.error(`Loaded CLI hook: ${file}`);
+							this.logger.trace(`Loaded CLI hook: ${highlight(file)}`);
 						} else {
 							this.hooks.incompatibleFilenames.push(file);
 						}
@@ -585,8 +590,11 @@ export default class CLI {
 					this.hooks.errors[file] = ex;
 				}
 			}
-		} catch (e) {
-			// squelch
+		} catch (err) {
+			if (err.code !== 'ENOENT') {
+				tunnel.log(`Error scanning hooks: ${highlight(dir)}`);
+				tunnel.log(err.stack);
+			}
 		}
 	}
 

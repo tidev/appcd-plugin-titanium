@@ -6,6 +6,13 @@ import { Readable } from 'stream';
 const { log } = appcd.logger('prompt');
 const { alert, highlight } = appcd.logger.styles;
 
+export class PromptError extends Error {
+	constructor(msg, ask) {
+		super(msg);
+		this.ask = ask;
+	}
+}
+
 /**
  * Prompts for a value with unified settings and improved style consistency.
  *

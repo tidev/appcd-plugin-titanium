@@ -1,4 +1,4 @@
-import { promptLoop } from '../../lib/prompt';
+import { runLegacyCLI } from '../run-legacy';
 
 export default {
 	desc: 'Remove previous build directories',
@@ -10,14 +10,6 @@ export default {
 		}
 	},
 	async action(ctx) {
-		await promptLoop({
-			ctx,
-			data: {
-				platforms:  ctx.argv.platforms,
-				projectDir: ctx.argv.projectDir
-			},
-			path: '/project/clean',
-			ns: 'cli:clean'
-		});
+		await runLegacyCLI('clean', ctx);
 	}
 };
