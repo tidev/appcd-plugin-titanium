@@ -161,7 +161,6 @@ export async function validate(argv) {
 	if (!account) {
 		const err = new Error('Log in required to use App Preview');
 		err.details = `Please login by running: ${highlight('ti login')}`;
-		err.showHelp = false;
 		throw err;
 	}
 
@@ -173,7 +172,6 @@ export async function validate(argv) {
 			err.details += `If this is not the correct organization, run ${highlight('"ti switch"')} to change to another organization.\n`;
 		}
 		err.details += 'To upgrade your account, visit https://billing.axway.com/.';
-		err.showHelp = false;
 		throw err;
 	}
 
@@ -183,7 +181,6 @@ export async function validate(argv) {
 	if (platform !== 'android' && platform !== 'ios') {
 		const err = new Error(`App Preview does not support the platform "${platform}"`);
 		err.details = 'Only Android and iOS platforms are supported.';
-		err.showHelp = false;
 		throw err;
 	}
 

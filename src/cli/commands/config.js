@@ -100,11 +100,7 @@ async function runConfig(action, { argv, cmd, console, setExitCode }) {
 		if (err.status === 404) {
 			return print({ code: 6, key });
 		}
-
-		if (json) {
-			cmd.showHelpOnError = false;
-			err.json = json;
-		}
+		err.json = json;
 		throw err;
 	}
 }

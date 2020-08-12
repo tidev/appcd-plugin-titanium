@@ -98,8 +98,9 @@ export async function spawnLegacyCLI({ console, data, prompt }) {
 	} else {
 		const { log } = logger(`${child.pid}-stdout`);
 		const { error } = logger(`${child.pid}-stderr`);
-		child.stdout.on('data', data => log(data.toString().replace(/\n$/, '')));
-		child.stderr.on('data', data => error(data.toString().replace(/\n$/, '')));
+		const newline = /\n$/;
+		child.stdout.on('data', data => log(data.toString().replace(newline, '')));
+		child.stderr.on('data', data => error(data.toString().replace(newline, '')));
 	}
 
 	return await new Promise((resolve, reject) => {
@@ -109,52 +110,43 @@ export async function spawnLegacyCLI({ console, data, prompt }) {
 		});
 
 		child.on('message', async msg => {
-			switch (msg.type) {
-				case 'call':
-					const { id, path, data } = msg;
-					if (id && path) {
-						let response;
-						try {
-							response = await appcd.call(path, data);
-						} catch (err) {
-							child.send({
-								error: err,
-								id,
-								type: 'error'
-							});
-							throw err;
-						}
+			const { type } = msg;
 
-						try {
-							child.send({
-								id,
-								response,
-								type: 'response'
-							});
-						} catch (err) {
-							console.error(err);
-						}
+			if (type === 'call') {
+				const { id, path, data } = msg;
+				if (id && path) {
+					try {
+						const response = await appcd.call(path, data);
+						child.send({ id, response, type: 'response' });
+					} catch (err) {
+						child.send({ error: err.message, id, type: 'error' });
 					}
-					return;
-
-				case 'error':
-				{
-					const err = new Error(msg.message);
-					return reject(Object.assign(err, msg));
 				}
 
-				case 'json':
-					return resolve(msg.data);
+			} else if (type === 'error') {
+				const err = new Error(msg.message);
+				reject(Object.assign(err, msg));
 
-				case 'log':
-					return trace.log(...msg.args);
+			} else if (type === 'json') {
+				resolve(msg.data);
 
-				case 'prompt':
-					// TODO
-					return;
+			} else if (type === 'log') {
+				trace.log(...msg.args);
 
-				case 'telemetry':
-					return appcd.telemetry(msg.payload);
+			} else if (type === 'prompt') {
+				const { ask, id } = msg;
+
+				if (ask && id) {
+					if (prompt) {
+						const result = await prompt(ask);
+						child.send({ id, result, type: 'answer' });
+					} else {
+						child.send({ error: 'Prompting is not enabled', id, type: 'error' });
+					}
+				}
+
+			} else if (type === 'telemetry') {
+				appcd.telemetry(msg.payload);
 			}
 		});
 

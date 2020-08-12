@@ -21,15 +21,14 @@ export default class ProjectService extends Dispatcher {
 		this.config = cfg;
 
 		const runLegacyCLI = async (command, ctx) => {
-			const console = new Console(ctx.response, ctx.response);
 			const { cwd } = ctx.request.data;
 			const argv = { ...ctx.request.data };
 			delete argv.cwd;
 			await exec({
 				argv,
 				command,
-				config: cfg.titanium,
-				console,
+				config:  cfg.titanium,
+				console: new Console(ctx.response, ctx.response),
 				cwd
 			});
 			ctx.response.end();
