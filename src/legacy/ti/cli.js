@@ -207,7 +207,7 @@ export default class CLI {
 	 * @access public
 	 */
 	addAnalyticsEvent(event, data, type) {
-		tunnel.call('/telemetry', { event: type === 'ti.apiusage' ? type : event, ...data });
+		tunnel.telemetry({ event: type === 'ti.apiusage' ? type : event, ...data });
 	}
 
 	/**
@@ -328,7 +328,7 @@ export default class CLI {
 					const { callback } = data;
 					if (typeof callback === 'function') {
 						data.callback = null;
-						callback.call(data, ...data.result);
+						callback.apply(data, data.result);
 					}
 				})
 				.catch(err => {
@@ -362,7 +362,7 @@ export default class CLI {
 		}
 
 		// create each hook and immediately fire them
-		const promise = unique(name)
+		const promise = unique(Array.isArray(name) ? name : [ name ])
 			.reduce((promise, name) => promise.then(() => new Promise((resolve, reject) => {
 				const hook = this.createHook(name, data);
 				this.logger.trace(`Emitting ${name}`);
@@ -451,7 +451,7 @@ export default class CLI {
 		await this.command.load(true);
 		await this.emit('cli:command-loaded', { cli: this, command: this.command });
 		await this.validate();
-		// await this.executeCommand();
+		await this.executeCommand();
 	}
 
 	/**
