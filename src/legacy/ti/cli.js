@@ -5,18 +5,16 @@ import fs from 'fs-extra';
 import getOSInfo from '../../lib/os';
 import path from 'path';
 import tunnel from '../tunnel';
-import vm from 'vm';
 import * as version from '../../lib/version';
 
 import { CLI_VERSION } from './version';
 import { expandPath } from 'appcd-path';
 import { format } from 'util';
 import { get, mergeDeep, set, unique } from 'appcd-util';
-import { INVALID_ARGUMENT } from './error';
 import { sdk } from 'titaniumlib';
 import { snooplogg } from 'cli-kit';
 
-const { gray, green, highlight, magenta, red, yellow } = snooplogg.styles;
+const { gray, green, highlight, magenta, note, red, yellow } = snooplogg.styles;
 
 /**
  * The Titanium CLI v5 requires the `--sdk <version>` to equal the `<sdk-version>` in the
@@ -79,11 +77,11 @@ export default class CLI {
 	 * @type {Object}
 	 */
 	logger = {
-		debug: (msg, ...args) => console.log(`${magenta('[DEBUG]')} ${format(msg, ...args)}`),
+		debug: (msg, ...args) => tunnel.log(`${magenta('[DEBUG]')} ${format(msg, ...args)}`),
 		error: (msg, ...args) => console.error(red(`[ERROR] ${format(msg, ...args)}`)),
 		info:  (msg, ...args) => console.info(`${green('[INFO] ')} ${format(msg, ...args)}`),
 		log:   console.log,
-		trace: (msg, ...args) => console.log(`${gray('[TRACE]')} ${format(msg, ...args)}`),
+		trace: (msg, ...args) => tunnel.log(`${gray('[TRACE]')} ${format(msg, ...args)}`),
 		warn:  (msg, ...args) => console.warn(yellow(`[WARN]  ${format(msg, ...args)}`)),
 
 		levels: {
@@ -123,6 +121,8 @@ export default class CLI {
 	 * @param {String} opts.command - The name of the command to execute.
 	 * @param {Object} [opts.config] - User-defined Titanium CLI config settings from appcd's user
 	 * config.
+	 * @param {Boolean} [opts.promptingEnabled] - When `true`, invalid and missing values will be
+	 * prompted for.
 	 * @param {String} opts.sdkPath - The path to the Titanium SDK.
 	 * @access public
 	 */
@@ -132,6 +132,8 @@ export default class CLI {
 		}
 
 		this.config = this.initConfig(opts.config);
+
+		this.promptingEnabled = !!opts.promptingEnabled;
 
 		// validate the sdk path
 		this.sdk = new sdk.TitaniumSDK(opts.sdkPath);
@@ -160,7 +162,7 @@ export default class CLI {
 					oscpu:  info.numcpus,
 					memory: info.memory,
 					node:   process.versions.node,
-					npm:    '?' // unimportant
+					npm:    'n/a' // unimportant
 				});
 			},
 
@@ -213,11 +215,31 @@ export default class CLI {
 	 *
 	 * @param {*} ...args - An event name and callback.
 	 * @returns {CLI}
-	 * @deprecated
 	 * @access public
 	 */
 	addHook(...args) {
 		return this.on(...args);
+	}
+
+	/**
+	 * Prompt for a question.
+	 *
+	 * @param {Object} question - The question parameters.
+	 * @returns {Promise}
+	 * @access public
+	 */
+	async ask(question) {
+		// copy the question and remove the error message
+		question = { required: true, ...question };
+		delete question.error;
+
+		if (this.promptingEnabled) {
+			return await tunnel.ask(question);
+		}
+
+		const err = new Error(question.error);
+		err.prompt = question;
+		throw err;
 	}
 
 	/**
@@ -275,11 +297,9 @@ export default class CLI {
 						})), Promise.resolve());
 
 					if (data.fn) {
-						data.result = await new Promise((resolve, reject) => {
+						data.result = await new Promise(resolve => {
 							// call the function
-							data.args.push((err, data) => {
-								err ? reject(err) : resolve(data);
-							});
+							data.args.push((...args) => resolve(args));
 							data.fn.apply(data.ctx, data.args);
 						});
 					}
@@ -308,13 +328,7 @@ export default class CLI {
 					const { callback } = data;
 					if (typeof callback === 'function') {
 						data.callback = null;
-						if (callback.length > 1) {
-							callback.call(data, null, data.result);
-						} else {
-							// this is because the original hook system was bad and didn't handle
-							// errors correctly :(
-							callback.call(data, data.result);
-						}
+						callback.call(data, ...data.result);
 					}
 				})
 				.catch(err => {
@@ -351,7 +365,7 @@ export default class CLI {
 		const promise = unique(name)
 			.reduce((promise, name) => promise.then(() => new Promise((resolve, reject) => {
 				const hook = this.createHook(name, data);
-				tunnel.log(`Emitting ${name}`);
+				this.logger.trace(`Emitting ${name}`);
 				hook((err, result) => {
 					err ? reject(err) : resolve(result);
 				});
@@ -383,7 +397,7 @@ export default class CLI {
 		let done = 0;
 
 		await new Promise((resolve, reject) => {
-			tunnel.log(`Executing ${highlight(this.command.name)}`);
+			this.logger.trace(`Executing ${highlight(this.command.name)}`);
 
 			run(this.logger, this.config, this, async (err, result) => {
 				if (done++) {
@@ -540,7 +554,7 @@ export default class CLI {
 	 */
 	scanHooks(dir) {
 		dir = expandPath(dir);
-		tunnel.log(`Scanning hooks: ${highlight(dir)}`);
+		this.logger.trace(`Scanning hooks: ${highlight(dir)}`);
 
 		if (this.hooks.scannedPaths[dir]) {
 			return;
@@ -556,9 +570,7 @@ export default class CLI {
 			for (const file of files) {
 				try {
 					if (fs.statSync(file).isFile() && jsfile.test(file) && !ignore.test(path.basename(path.dirname(file)))) {
-						tunnel.log(`Checking hook: ${highlight(file)}`);
-						// test the file for syntax errors
-						vm.runInThisContext(`(function (exports, require, module, __filename, __dirname){${fs.readFileSync(file).toString()}\n});`, file, 0, false);
+						const startTime = Date.now();
 
 						// eslint-disable-next-line security/detect-non-literal-require
 						var mod = require(file);
@@ -580,7 +592,7 @@ export default class CLI {
 						if (!this.version || !mod.cliVersion || version.satisfies(this.version, mod.cliVersion)) {
 							mod.init && mod.init(this.logger, this.config, this, appc);
 							this.hooks.loadedFilenames.push(file);
-							this.logger.trace(`Loaded CLI hook: ${highlight(file)}`);
+							this.logger.trace(`Loaded CLI hook: ${highlight(file)} ${note(`(${Date.now() - startTime} ms)`)}`);
 						} else {
 							this.hooks.incompatibleFilenames.push(file);
 						}
@@ -592,8 +604,8 @@ export default class CLI {
 			}
 		} catch (err) {
 			if (err.code !== 'ENOENT') {
-				tunnel.log(`Error scanning hooks: ${highlight(dir)}`);
-				tunnel.log(err.stack);
+				this.logger.trace(`Error scanning hooks: ${highlight(dir)}`);
+				this.logger.trace(err.stack);
 			}
 		}
 	}
@@ -609,7 +621,7 @@ export default class CLI {
 	async validate() {
 		await this.emit('cli:pre-validate', { cli: this, command: this.command });
 
-		// step 0: build a list of all options so we can sort them
+		// step 1: build a list of all options so we can sort them
 		const options = [];
 		for (const ctx of [ this.command, this.command?.platform ]) {
 			if (ctx?.conf.options) {
@@ -640,54 +652,68 @@ export default class CLI {
 			}
 		}
 
-		options.sort((a, b) => ~~b.order - ~~a.order);
+		options.sort((a, b) => {
+			if (a.order && b.order) {
+				return a.order - b.order;
+			}
+			return a.order ? -1 : b.order ? 1 : 0;
+		});
 
-		// step 1: determine invalid or missing options
+		const createQuestion = (opt, error) => {
+			if (opt.values) {
+				return {
+					choices: opt.values.map(value => ({ value })),
+					error,
+					message: `Please select a valid ${opt.name}`,
+					name:    opt.name,
+					type:    'select'
+				};
+			}
+			return {
+				error,
+				message: `Please enter a valid ${opt.name}`,
+				name:    opt.name,
+				type:    'text'
+			};
+		};
+
+		// step 2: determine invalid or missing options
 		for (const opt of options) {
 			const { name } = opt;
 			const value = this.argv[name];
 
-			if (value !== undefined && opt.values && !opt.values.includes(value)) {
-				throw INVALID_ARGUMENT({
-					msg: `Invalid ${name} value "${value}"`,
-					option: opt
-				});
-			}
-
-			if (value !== undefined) {
-				if (typeof opt.validate === 'function') {
-					await new Promise((resolve, reject) => {
-						opt.validate(value, (err, value) => {
-							if (err) {
-								return reject(INVALID_ARGUMENT({
-									msg: `Invalid ${name} value "${value}"`,
-									option: opt
-								}));
-							}
-
-							this.argv[name] = opt.callback(value);
-							resolve();
-						});
-					});
-				} else {
-					this.argv[name] = opt.callback(value);
+			if (value === undefined) {
+				// we need to check if the option is required
+				// sometimes required options such as `--device-id` allow an undefined value in the
+				// case when the value is derived by the config or is autoselected
+				if (opt.required && (typeof opt.verifyIfRequired !== 'function' || await new Promise(opt.verifyIfRequired))) {
+					this.argv[name] = await this.ask(createQuestion(opt, `Missing required option "${name}"`));
 				}
-
-			// we need to check if the option is required
-			// sometimes required options such as `--device-id` allow an undefined value in the
-			// case when the value is derived by the config or is autoselected
-			} else if (opt.required && (typeof opt.verifyIfRequired !== 'function' || await new Promise(opt.verifyIfRequired))) {
-				throw INVALID_ARGUMENT({
-					msg: `Missing required option: ${name}`,
-					option: opt
+			} else if (opt.values && !opt.values.includes(value)) {
+				this.argv[name] = await this.ask(createQuestion(opt, `Invalid ${name} value "${value}"`));
+			} else if (typeof opt.validate === 'function') {
+				this.argv[name] = await new Promise((resolve, reject) => {
+					opt.validate(value, async (err, adjustedValue) => {
+						if (err) {
+							this.logger.trace(`Validation failed for option ${name}: ${err.toString()}`);
+							try {
+								adjustedValue = await this.ask(createQuestion(opt, `Invalid ${name} value "${value}"`));
+							} catch (e) {
+								return reject(e);
+							}
+						}
+						resolve(opt.callback(adjustedValue));
+					});
 				});
+			} else {
+				this.argv[name] = opt.callback(value);
 			}
 		}
 
 		// note that we don't care about missing arguments because `build` and `clean` commands
 		// don't have any arguments!
 
-		// step 2: run the command's validate() function, if exists
+		// step 3: run the command's validate() function, if exists
 
 		const { validate } = this.command.module;
 		if (validate && typeof validate === 'function') {
@@ -701,7 +727,7 @@ export default class CLI {
 
 		await this.emit('cli:post-validate', { cli: this, command: this.command });
 
-		// step 3: fire all option callbacks for any options we missed above
+		// step 4: fire all option callbacks for any options we missed above
 		for (const opt of options) {
 			if (typeof opt.callback === 'function') {
 				const val = opt.callback(this.argv[opt.name] || '');

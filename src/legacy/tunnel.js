@@ -56,19 +56,39 @@ class Tunnel {
 			if (!req) {
 				return;
 			}
+			delete this.pending[id];
+
 			const { resolve, reject } = req;
 
 			switch (type) {
-				case 'response':
-					delete this.pending[id];
-					resolve(data.response);
-					return;
+				case 'answer':
+					return resolve(data.answer);
 
 				case 'error':
-					delete this.pending[id];
-					reject(new Error(data.error));
-					return;
+					return reject(new Error(data.error));
+
+				case 'response':
+					return resolve(data.response);
 			}
+		});
+	}
+
+	/**
+	 * Requests that the parent process prompts for specified question.
+	 *
+	 * @param {Object} question - The question to prompt for.
+	 * @returns {Promise}
+	 * @access public
+	 */
+	ask(question) {
+		return new Promise((resolve, reject) => {
+			const id = uuidv4();
+			this.pending[id] = { resolve, reject };
+			process.send({
+				id,
+				question,
+				type: 'prompt'
+			});
 		});
 	}
 

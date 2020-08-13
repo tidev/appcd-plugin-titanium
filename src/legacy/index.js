@@ -7,6 +7,19 @@ import { spawn } from 'appcd-subprocess';
 const logger = appcd.logger('legacy-cli');
 const { log } = logger;
 
+/**
+ * Executes the 'build' or 'clean' command from the Legacy Titanium CLI.
+ *
+ * @param {Object} opts - Various options.
+ * @param {Object} opts.argv - The parsed arguments.
+ * @param {String} opts.command - The name of the command to execute.
+ * @param {Object} [opts.config] - The Titanium configuration.
+ * @param {Console} opts.console - A console to write output to.
+ * @param {String} [opts.cwd] - The current working directory. Only required if `projectDir` is
+ * undefined or a relative path.
+ * @param {Function} [opts.prompt] - A function that prompts for user input.
+ * @returns {Promise}
+ */
 export async function exec({ argv, command, config, console, cwd, prompt }) {
 	let { projectDir } = argv;
 
@@ -38,6 +51,7 @@ export async function exec({ argv, command, config, console, cwd, prompt }) {
 	});
 
 	// step 3: load the sdk
+	// FIX ME!
 	// const { sdk } = project.tiapp.get('sdk-version');
 	const sdk = '9.0.3.GA';
 	const sdkInfo = (await appcd.call('/sdk/find', { data: { name: sdk } })).response;
@@ -49,11 +63,11 @@ export async function exec({ argv, command, config, console, cwd, prompt }) {
 			sdk
 		},
 		command,
-		config:  config || {},
-		cwd: projectDir,
-		prompt:  !!prompt,
-		sdkPath: sdkInfo.path,
-		type:    'exec'
+		config:           config || {},
+		cwd:              projectDir,
+		promptingEnabled: !!prompt,
+		sdkPath:          sdkInfo.path,
+		type:             'exec'
 	};
 
 	if (command === 'build') {
@@ -61,11 +75,7 @@ export async function exec({ argv, command, config, console, cwd, prompt }) {
 	}
 
 	// step 4: spawn the legacy cli
-	await spawnLegacyCLI({
-		console,
-		data,
-		prompt
-	});
+	await spawnLegacyCLI({ console, data, prompt });
 }
 
 /**
@@ -75,6 +85,7 @@ export async function exec({ argv, command, config, console, cwd, prompt }) {
  * @param {Console} [opts.console] - The console to pipe output to.
  * @param {Object} [opts.data] - A data payload to send over the IPC tunnel to the Legacy Titanium
  * CLI.
+ * @param {Function} [opts.prompt] - A function that prompts for user input.
  * @returns {Promise}
  */
 export async function spawnLegacyCLI({ console, data, prompt }) {
@@ -134,12 +145,12 @@ export async function spawnLegacyCLI({ console, data, prompt }) {
 				trace.log(...msg.args);
 
 			} else if (type === 'prompt') {
-				const { ask, id } = msg;
+				const { id, question } = msg;
 
-				if (ask && id) {
+				if (id && question) {
 					if (prompt) {
-						const result = await prompt(ask);
-						child.send({ id, result, type: 'answer' });
+						const answer = await prompt(question);
+						child.send({ answer, id, type: 'answer' });
 					} else {
 						child.send({ error: 'Prompting is not enabled', id, type: 'error' });
 					}

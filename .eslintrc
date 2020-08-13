@@ -1,6 +1,6 @@
 {
 	"rules": {
-		"max-depth": [ "warn", 6 ],
+		"max-depth": [ "warn", 7 ],
 		"no-loop-func": "off",
 		"promise/always-return": "off"
 	}

@@ -1,3 +1,5 @@
+/* eslint-disable node/prefer-global/console */
+
 import Dispatcher from 'appcd-dispatcher';
 import TemplateService from './templates-service';
 import { Console } from 'console';

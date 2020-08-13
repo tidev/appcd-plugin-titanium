@@ -92,6 +92,9 @@ export default class CLIService extends Dispatcher {
 					// copy the platform-specific options into a cli-kit friendly format
 					buildOptions = [];
 
+					const lv = {};
+					const lvRegExp = /^liveview/;
+
 					for (const key of Object.keys(config)) {
 						if (key === 'flags' || key === 'options') {
 							// we skip the top level build flags/options because they are either
@@ -102,7 +105,7 @@ export default class CLIService extends Dispatcher {
 
 								for (const [ name, flag ] of Object.entries(conf.flags)) {
 									if (!flag.hidden) {
-										options[`--${name}`] = { desc: capitalize(flag.desc) };
+										(lvRegExp.test(name) ? lv : options)[`--${name}`] = { desc: capitalize(flag.desc) };
 									}
 								}
 
@@ -110,7 +113,7 @@ export default class CLIService extends Dispatcher {
 									if (!option.hidden) {
 										let format = option.abbr ? `-${option.abbr}, ` : '';
 										format += `--${name} ${option.required ? '<' : '['}${option.hint || 'value'}${option.required ? '>' : ']'}`;
-										options[format] = { desc: capitalize(option.desc) };
+										(lvRegExp.test(name) ? lv : options)[format] = { desc: capitalize(option.desc) };
 									}
 								}
 
@@ -121,6 +124,10 @@ export default class CLIService extends Dispatcher {
 						} else if (Array.isArray(config[key])) {
 							buildOptions.push.apply(buildOptions, config[key]);
 						}
+					}
+
+					if (Object.keys(lv).length) {
+						buildOptions.push('LiveView Options', lv);
 					}
 
 					buildOptionsCache[sdkInfo.path] = buildOptions;

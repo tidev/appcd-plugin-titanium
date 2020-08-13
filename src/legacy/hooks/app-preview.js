@@ -12,7 +12,7 @@
 
 exports.init = (logger, config, cli, appc) => {
 	cli.on('build.config', data => {
-		data.result.appPreview = [
+		data.result[1].appPreview = [
 			'App Preview Options',
 			{
 				'--app-preview':              'Deploy a build to App Preview',

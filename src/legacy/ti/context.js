@@ -1,13 +1,11 @@
+import fs from 'fs-extra';
 import path from 'path';
-import tunnel from '../tunnel';
 import * as version from '../../lib/version';
 
 import { CLI_VERSION } from './version';
-import { INVALID_ARGUMENT } from './error';
-import { isFile } from 'appcd-fs';
 import { snooplogg } from 'cli-kit';
 
-const { highlight } = snooplogg.styles;
+const { highlight, note } = snooplogg.styles;
 
 /**
  * Command specific data including the command module and configuration.
@@ -45,10 +43,6 @@ export default class Context {
 		this.name   = name;
 		this.parent = parent;
 		this.path   = path;
-
-		if (!isFile(this.path)) {
-			throw new Error(`Command file not found: ${path}`);
-		}
 	}
 
 	/**
@@ -61,9 +55,12 @@ export default class Context {
 	 * @access public
 	 */
 	async load(checkPlatform) {
-		tunnel.log(`Loading command file: ${highlight(this.path)}`);
+		const startTime = Date.now();
+
 		// eslint-disable-next-line security/detect-non-literal-require
 		this.module = require(this.path);
+
+		this.cli.logger.trace(`Loaded command file: ${highlight(this.path)} ${note(`(${Date.now() - startTime} ms)`)}`);
 
 		if (this.module.cliVersion && !version.satisfies(this.cliVersion, this.module.cliVersion)) {
 			throw new Error(`Command "${this.name}" is incompatible with this version of the Titanium CLI`);
@@ -85,18 +82,32 @@ export default class Context {
 		// the `build` command `--platform` option was hard wired into the CLI context, so
 		// unfortunately we need to do a bunch of `build` specific logic to load the platform
 		// specific command
-		const { platform } = this.cli.argv;
+		let { platform } = this.cli.argv;
+		const availablePlatforms = this.cli.sdk.manifest.platforms;
+
+		// the platform should really be named 'ios', so just in case someday we fix that
+		if (platform === 'ios' && !availablePlatforms.includes('ios')) {
+			platform = 'iphone';
+		}
+
 		if (!platform) {
-			throw INVALID_ARGUMENT({
-				msg: 'Missing required "platform"',
-				code: 'EPLATFORM',
-				prompt: {
-					choices:  this.conf.options.platform.values.map(platform => ({ value: platform })),
-					message:  'For which platform do you want to build?',
-					name:     'platform',
-					required: true,
-					type:     'select'
+			const choices = availablePlatforms.map(value => {
+				let message = value;
+				try {
+					const pkgJson = fs.readJsonSync(path.join(this.cli.sdk.path, value, 'package.json'));
+					message = pkgJson.title || value;
+				} catch (e) {
+					// squelch
 				}
+				return { message, value };
+			}).sort((a, b) => a.message.localeCompare(b.message));
+
+			platform = await this.cli.ask({
+				choices,
+				error:    'Missing required option "platform"',
+				message:  'For which platform do you want to build?',
+				name:     'platform',
+				type:     'select'
 			});
 		}
 
