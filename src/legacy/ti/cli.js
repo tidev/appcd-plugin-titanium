@@ -10,7 +10,7 @@ import * as version from '../../lib/version';
 import { CLI_VERSION } from './version';
 import { expandPath } from 'appcd-path';
 import { format } from 'util';
-import { get, mergeDeep, set, unique } from 'appcd-util';
+import { debounce, get, mergeDeep, set, unique } from 'appcd-util';
 import { sdk } from 'titaniumlib';
 import { snooplogg } from 'cli-kit';
 
@@ -77,12 +77,12 @@ export default class CLI {
 	 * @type {Object}
 	 */
 	logger = {
-		debug: (msg, ...args) => tunnel.log(`${magenta('[DEBUG]')} ${format(msg, ...args)}`),
-		error: (msg, ...args) => console.error(red(`[ERROR] ${format(msg, ...args)}`)),
-		info:  (msg, ...args) => console.info(`${green('[INFO] ')} ${format(msg, ...args)}`),
-		log:   console.log,
-		trace: (msg, ...args) => tunnel.log(`${gray('[TRACE]')} ${format(msg, ...args)}`),
-		warn:  (msg, ...args) => console.warn(yellow(`[WARN]  ${format(msg, ...args)}`)),
+		debug: (msg = '', ...args) => console.log(`${magenta('[DEBUG]')} ${format(msg, ...args)}`),
+		error: (msg = '', ...args) => console.error(red(`[ERROR] ${format(msg, ...args)}`)),
+		info:  (msg = '', ...args) => console.info(`${green('[INFO]')}  ${format(msg, ...args)}`),
+		log:   (msg = '', ...args) => console.log(format(msg, ...args)),
+		trace: (msg = '', ...args) => console.log(`${gray('[TRACE]')} ${format(msg, ...args)}`),
+		warn:  (msg = '', ...args) => console.warn(yellow(`[WARN]  ${format(msg, ...args)}`)),
 
 		levels: {
 			trace: {},
@@ -420,10 +420,13 @@ export default class CLI {
 				resolve();
 			});
 
-			// if there's no callback in the run signature, then unblock the function and let
-			// Node.js wait for run() to finish any async tasks
+			// if there's no callback in the run signature (e.g. the "clean" command), then we wait
+			// 100ms after the last bit of output activity through the IPC tunnel
 			if (run.length < 4) {
-				resolve();
+				this.logger.debug(`Command "${this.command.name}" does NOT have a finished callback!`);
+				const fn = debounce(resolve, 100);
+				fn(); // start the bounce
+				tunnel.on('tick', fn);
 			}
 		});
 	}
@@ -433,7 +436,6 @@ export default class CLI {
 	 *
 	 * @param {*} ...args - The hook names, data, and callback.
 	 * @returns {CLI}
-	 * @deprecated
 	 * @access public
 	 */
 	fireHook(...args) {

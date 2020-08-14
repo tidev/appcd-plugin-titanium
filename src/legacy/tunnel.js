@@ -1,4 +1,5 @@
 import CLI from './ti/cli';
+import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -6,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
  *
  * Note that this tunnel implementation does NOT support chunked/streamed responses.
  */
-class Tunnel {
+class Tunnel extends EventEmitter {
 	/**
 	 * A map of all pending request ids and their associated promise callbacks.
 	 * @type {Object}
@@ -19,58 +20,8 @@ class Tunnel {
 	 * @access public
 	 */
 	constructor() {
-		process.on('message', async data => {
-			const { id, type } = data;
-
-			if (type === 'exec' || type === 'help') {
-				try {
-					const cli = new CLI(data);
-
-					if (type === 'exec') {
-						await cli.go();
-					} else {
-						await cli.command.load();
-						process.send({
-							data: cli.command.conf,
-							type: 'json'
-						});
-					}
-
-					// the command is complete, but the IPC channel is still open, so we simply disconnect it and
-					// this process should exit whenever the command finishes
-					process.disconnect();
-				} catch (err) {
-					process.send({
-						...err,
-						message: err.message || err,
-						stack: err.stack,
-						status: err.status || 500,
-						type: 'error'
-					});
-					process.exit(1);
-				}
-				return;
-			}
-
-			const req = id && this.pending[id];
-			if (!req) {
-				return;
-			}
-			delete this.pending[id];
-
-			const { resolve, reject } = req;
-
-			switch (type) {
-				case 'answer':
-					return resolve(data.answer);
-
-				case 'error':
-					return reject(new Error(data.error));
-
-				case 'response':
-					return resolve(data.response);
-			}
-		});
+		super();
+		process.on('message', data => this.onMessage(data));
 	}
 
 	/**
@@ -81,14 +32,9 @@ class Tunnel {
 	 * @access public
 	 */
 	ask(question) {
-		return new Promise((resolve, reject) => {
-			const id = uuidv4();
-			this.pending[id] = { resolve, reject };
-			process.send({
-				id,
-				question,
-				type: 'prompt'
-			});
+		return this.sendRequest({
+			question,
+			type: 'prompt'
 		});
 	}
 
@@ -101,15 +47,10 @@ class Tunnel {
 	 * @access public
 	 */
 	call(path, data) {
-		return new Promise((resolve, reject) => {
-			const id = uuidv4();
-			this.pending[id] = { resolve, reject };
-			process.send({
-				data,
-				id,
-				path,
-				type: 'call'
-			});
+		return this.sendRequest({
+			data,
+			path,
+			type: 'call'
 		});
 	}
 
@@ -120,9 +61,92 @@ class Tunnel {
 	 * @access public
 	 */
 	log(...args) {
-		process.send({
-			args,
-			type: 'log'
+		this.emit('tick');
+		if (process.connected) {
+			process.send({
+				args,
+				type: 'log'
+			});
+		}
+	}
+
+	/**
+	 * Dispatches a message from the parent process.
+	 *
+	 * @param {Object} data - The message data.
+	 * @access private
+	 */
+	async onMessage(data) {
+		const { id, type } = data;
+
+		if (type === 'exec' || type === 'help') {
+			try {
+				const cli = new CLI(data);
+
+				if (type === 'exec') {
+					await cli.go();
+				} else {
+					await cli.command.load();
+					process.send({
+						data: cli.command.conf,
+						type: 'json'
+					});
+				}
+
+				// the command is complete, but the IPC channel is still open, so we simply disconnect it and
+				// this process should exit whenever the command finishes
+				this.log('Disconnecting IPC tunnel from parent and letting process exit gracefully');
+				process.disconnect();
+			} catch (err) {
+				process.send({
+					...err,
+					message: err.message || err,
+					stack: err.stack,
+					status: err.status || 500,
+					type: 'error'
+				});
+				process.exit(1);
+			}
+			return;
+		}
+
+		const req = id && this.pending[id];
+		if (!req) {
+			return;
+		}
+		delete this.pending[id];
+
+		const { resolve, reject } = req;
+
+		switch (type) {
+			case 'answer':
+				return resolve(data.answer);
+
+			case 'error':
+				return reject(new Error(data.error));
+
+			case 'response':
+				return resolve(data.response);
+		}
+	}
+
+	/**
+	 * Initiates a request over the IPC tunnel to the parent.
+	 *
+	 * @param {Object} data - The request payload.
+	 * @returns {Promise}
+	 * @access private
+	 */
+	sendRequest(data) {
+		return new Promise((resolve, reject) => {
+			this.emit('tick');
+			if (process.connected) {
+				data.id = uuidv4();
+				this.pending[data.id] = { resolve, reject };
+				process.send(data);
+			} else {
+				reject(new Error(`Can't send "${data.type}" message to parent because IPC channel has been closed`));
+			}
 		});
 	}
 
@@ -133,10 +157,13 @@ class Tunnel {
 	 * @access public
 	 */
 	telemetry(payload) {
-		process.send({
-			payload,
-			type: 'telemetry'
-		});
+		this.emit('tick');
+		if (process.connected) {
+			process.send({
+				payload,
+				type: 'telemetry'
+			});
+		}
 	}
 }
 
