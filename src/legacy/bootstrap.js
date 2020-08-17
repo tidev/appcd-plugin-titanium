@@ -10,7 +10,6 @@ if (!process.connected) {
 
 import 'v8-compile-cache';
 import 'colors';
-import './patch';
 import './tunnel';
 
 process.title = 'titanium-legacy-bootstrap';

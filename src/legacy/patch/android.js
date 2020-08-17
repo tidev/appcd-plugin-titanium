@@ -6,104 +6,118 @@ import { snooplogg } from 'cli-kit';
 
 const { alert } = snooplogg.styles;
 
-/**
- * Detects Android development environment by calling the `android` appcd plugin and translating
- * the results into a Titanium SDK compatible structure.
- *
- * @param {Object} config - The Titanium CLI config object.
- * @param {Object} opts - Various options.
- * @param {Object} opts.packageJson - The Android platform-specific `package.json`.
- * @param {Function} callback - A function to call with the detection results. Note that this
- * function receives a single argument with the info. Any errors must be silenced.
- */
-export function detect(config = {}, { packageJson } = {}, callback) {
-	tunnel.call('/android/2.x/info')
-		.then(({ response: info }) => {
-			const { vendorDependencies } = packageJson;
-			const results = {
-				avds:               info.emulators,
-				devices:            info.devices,
-				issues:             [],
-				ndk:                processNDK(info.ndks),
-				sdk:                processSDK(info.sdks, config, vendorDependencies),
-				targets:            {},
-				vendorDependencies: vendorDependencies || {}
-			};
+export function patch() {
+	let cache;
 
-			processTargets(results, info.sdks, vendorDependencies);
+	return {
+		/**
+		 * Detects Android development environment by calling the `android` appcd plugin and translating
+		 * the results into a Titanium SDK compatible structure.
+		 *
+		 * @param {Object} config - The Titanium CLI config object.
+		 * @param {Object} opts - Various options.
+		 * @param {Object} opts.packageJson - The Android platform-specific `package.json`.
+		 * @param {Function} callback - A function to call with the detection results. Note that this
+		 * function receives a single argument with the info. Any errors must be silenced.
+		 */
+		detect(config = {}, { packageJson } = {}, callback) {
+			if (cache) {
+				return callback(null, cache);
+			}
 
-			if (!results.ndk) {
-				results.issues.push({
-					id: 'ANDROID_NDK_NOT_FOUND',
-					type: 'warning',
-					message: `Unable to locate an Android NDK.
+			tunnel.call('/android/2.x/info')
+				.then(({ response: info }) => {
+					const { vendorDependencies } = packageJson;
+					const results = {
+						avds:               info.emulators,
+						devices:            info.devices,
+						issues:             [],
+						ndk:                processNDK(info.ndks),
+						sdk:                processSDK(info.sdks, config, vendorDependencies),
+						targets:            {},
+						vendorDependencies: vendorDependencies || {}
+					};
+
+					processTargets(results, info.sdks, vendorDependencies);
+					processIssues(results, config, vendorDependencies);
+
+					cache = results;
+					callback(results);
+				})
+				.catch(err => {
+					tunnel.log(alert(err.stack));
+					callback({
+						issues: [],
+						sdk: null
+					});
+				});
+		}
+	};
+}
+
+function processIssues(results, config, vendorDependencies) {
+	if (!results.ndk) {
+		results.issues.push({
+			id: 'ANDROID_NDK_NOT_FOUND',
+			type: 'warning',
+			message: `Unable to locate an Android NDK.
 Without the NDK, you will not be able to build native Android Titanium modules.
 To install the Android NDK, use Android Studio's SDK Manager.
 If you have already installed the Android NDK, configure the location by running: appcd config push android.ndk.searchPaths /path/to/android-ndk`
-				});
-			}
+		});
+	}
 
-			if (results.sdk) {
-				const appendInfo = msg => {
-					return `${msg}
+	if (results.sdk) {
+		const appendInfo = msg => {
+			return `${msg}
 
 Current installed Android SDK tools:
-  Android SDK Tools:          ${results.sdk.tools.version || 'not installed'}  (Supported: ${vendorDependencies['android tools']})
-  Android SDK Platform Tools: ${results.sdk.platformTools.version || 'not installed'}  (Supported: ${vendorDependencies['android platform tools']})
-  Android SDK Build Tools:    ${results.sdk.buildTools.version || 'not installed'}  (Supported: ${vendorDependencies['android build tools']})
+Android SDK Tools:          ${results.sdk.tools.version || 'not installed'}  (Supported: ${vendorDependencies['android tools']})
+Android SDK Platform Tools: ${results.sdk.platformTools.version || 'not installed'}  (Supported: ${vendorDependencies['android platform tools']})
+Android SDK Build Tools:    ${results.sdk.buildTools.version || 'not installed'}  (Supported: ${vendorDependencies['android build tools']})
 
 Make sure you have the latest Android SDK Tools, Platform Tools, and Build Tools installed.`;
-				};
+		};
 
-				if (!results.sdk.buildTools.supported) {
-					results.issues.push({
-						id: 'ANDROID_BUILD_TOOLS_NOT_SUPPORTED',
-						type: 'error',
-						message: appendInfo(`Android Build Tools ${results.sdk.buildTools.version} are not supported by Titanium`)
-					});
-				}
+		if (!results.sdk.buildTools.supported) {
+			results.issues.push({
+				id: 'ANDROID_BUILD_TOOLS_NOT_SUPPORTED',
+				type: 'error',
+				message: appendInfo(`Android Build Tools ${results.sdk.buildTools.version} are not supported by Titanium`)
+			});
+		}
 
-				if (results.sdk.buildTools.notInstalled) {
-					const preferred = config.get('titanium.android.buildTools.selectedVersion');
-					results.issues.push({
-						id: 'ANDROID_BUILD_TOOLS_CONFIG_SETTING_NOT_INSTALLED',
-						type: 'error',
-						message: appendInfo(`The selected version of Android SDK Build Tools (${preferred}) are not installed.
+		if (results.sdk.buildTools.notInstalled) {
+			const preferred = config.get('titanium.android.buildTools.selectedVersion');
+			results.issues.push({
+				id: 'ANDROID_BUILD_TOOLS_CONFIG_SETTING_NOT_INSTALLED',
+				type: 'error',
+				message: appendInfo(`The selected version of Android SDK Build Tools (${preferred}) are not installed.
 Please either install this version of the build tools or remove this setting by running:
-  ti config delete android.buildTools.selectedVersion
+ti config delete android.buildTools.selectedVersion
 and
-  appcd config delete titanium.android.buildTools.selectedVersion`)
-					});
-				}
+appcd config delete titanium.android.buildTools.selectedVersion`)
+			});
+		}
 
-				// check if the sdk is missing any commands
-				var missing = [ 'adb', 'emulator', 'mksdcard', 'zipalign', 'aapt', 'aidl', 'dx' ].filter(cmd => !results.sdk.executables[cmd]);
-				if (missing.length && results.sdk.buildTools.supported) {
-					results.issues.push({
-						id: 'ANDROID_SDK_MISSING_PROGRAMS',
-						type: 'error',
-						message: appendInfo(`Missing required Android SDK tool${missing.length !== 1 ? 's' : ''}: ${missing.join(', ')}`)
-					});
-				}
-			} else {
-				results.issues.push({
-					id: 'ANDROID_SDK_NOT_FOUND',
-					type: 'error',
-					message: `Unable to locate an Android SDK.
+		// check if the sdk is missing any commands
+		var missing = [ 'adb', 'emulator', 'mksdcard', 'zipalign', 'aapt', 'aidl', 'dx' ].filter(cmd => !results.sdk.executables[cmd]);
+		if (missing.length && results.sdk.buildTools.supported) {
+			results.issues.push({
+				id: 'ANDROID_SDK_MISSING_PROGRAMS',
+				type: 'error',
+				message: appendInfo(`Missing required Android SDK tool${missing.length !== 1 ? 's' : ''}: ${missing.join(', ')}`)
+			});
+		}
+	} else {
+		results.issues.push({
+			id: 'ANDROID_SDK_NOT_FOUND',
+			type: 'error',
+			message: `Unable to locate an Android SDK.
 To install the Android SDK, use Android Studio's SDK Manager.
 If you have already installed the Android SDK, configure the location by running: appcd config push android.sdk.searchPaths /path/to/android-sdk`
-				});
-			}
-
-			callback(results);
-		})
-		.catch(err => {
-			tunnel.log(alert(err.stack));
-			callback({
-				issues: [],
-				sdk: null
-			});
 		});
+	}
 }
 
 function processNDK(ndks) {

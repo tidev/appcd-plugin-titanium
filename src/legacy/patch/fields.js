@@ -1,20 +1,9 @@
-export function setup() {
-}
-
-export function file() {
+export function patch() {
+	const dummy = { prompt() {} };
 	return {
-		prompt() {}
-	};
-}
-
-export function select() {
-	return {
-		prompt() {}
-	};
-}
-
-export function text() {
-	return {
-		prompt() {}
+		setup() {},
+		file: () => dummy,
+		select: () => dummy,
+		text: () => dummy
 	};
 }

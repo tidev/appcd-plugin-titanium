@@ -3,6 +3,7 @@
 import Context from './context';
 import fs from 'fs-extra';
 import getOSInfo from '../../lib/os';
+import Module from 'module';
 import path from 'path';
 import tunnel from '../tunnel';
 import * as version from '../../lib/version';
@@ -180,6 +181,21 @@ export default class CLI {
 			}
 		};
 
+		// patch modules
+		const load = Module._load;
+		const patchDir = path.resolve(__dirname, '..', 'patch');
+		const lookup = {
+			fields:                          path.join(patchDir, 'fields.js'),
+			ioslib:                          path.join(patchDir, 'ios.js'),
+			'node-titanium-sdk/lib/android': path.join(patchDir, 'android.js')
+		};
+		Module._load = (request, parent, isMain) => {
+			if (lookup[request] && parent && path.basename(parent.filename) === '_build.js') {
+				return require(lookup[request]).patch({ load, request, parent, isMain });
+			}
+			return load(request, parent, isMain);
+		};
+
 		// initialize the commands
 		const cmd = opts.command;
 		if (cmd !== 'build' && cmd !== 'clean') {
@@ -264,84 +280,79 @@ export default class CLI {
 		}
 
 		return (...args) => {
-			const callback = args.length && typeof args[args.length - 1] === 'function' ? args.pop() : null;
-			let data = Object.assign(dataPayload, {
+			let data = Object.assign({}, dataPayload, {
 				type: name,
 				args,
-				callback,
 				fn: fn,
 				ctx: ctx
 			});
+			const callback = data.args.pop();
 			const pres = this.hooks.pre[name] || [];
 			const posts = this.hooks.post[name] || [];
 
-			Promise.resolve()
-				.then(async () => {
-					// call all pre filters
-					await pres
-						// eslint-disable-next-line promise/no-nesting
-						.reduce((promise, pre) => promise.then(() => new Promise((resolve, reject) => {
-							if (pre.length >= 2) {
-								pre.call(ctx, data, (err, newData) => {
+			(async () => {
+				// call all pre filters
+				await pres
+					// eslint-disable-next-line promise/no-nesting
+					.reduce((promise, pre) => promise.then(() => new Promise((resolve, reject) => {
+						if (pre.length >= 2) {
+							pre.call(ctx, data, (err, newData) => {
+								if (err) {
+									return reject(err);
+								} else if (newData) {
+									data = newData;
+								}
+								resolve();
+							});
+						} else {
+							pre.call(ctx, data);
+							resolve();
+						}
+					})), Promise.resolve());
+
+				if (data.fn) {
+					data.result = await new Promise(resolve => {
+						// call the function
+						data.args.push((...args) => resolve(args));
+						data.fn.apply(data.ctx, data.args);
+					});
+				}
+
+				// call all post filters
+				await posts
+					// eslint-disable-next-line promise/no-nesting
+					.reduce((promise, post) => promise.then(async () => {
+						if (post.length >= 2) {
+							await new Promise((resolve, reject) => {
+								post.call(ctx, data, (err, newData) => {
 									if (err) {
 										return reject(err);
-									} else if (newData) {
+									}
+									if (newData && typeof newData === 'object' && newData.type) {
 										data = newData;
 									}
 									resolve();
 								});
-							} else {
-								pre.call(ctx, data);
-								resolve();
-							}
-						})), Promise.resolve());
+							});
+						} else {
+							post.call(ctx, data);
+						}
+					}), Promise.resolve());
 
-					if (data.fn) {
-						data.result = await new Promise(resolve => {
-							// call the function
-							data.args.push((...args) => resolve(args));
-							data.fn.apply(data.ctx, data.args);
-						});
-					}
-
-					// call all post filters
-					await posts
-						// eslint-disable-next-line promise/no-nesting
-						.reduce((promise, post) => promise.then(async () => {
-							if (post.length >= 2) {
-								await new Promise((resolve, reject) => {
-									post.call(ctx, data, (err, newData) => {
-										if (err) {
-											return reject(err);
-										}
-										if (newData && typeof newData === 'object' && newData.type) {
-											data = newData;
-										}
-										resolve();
-									});
-								});
-							} else {
-								post.call(ctx, data);
-							}
-						}), Promise.resolve());
-
-					const { callback } = data;
-					if (typeof callback === 'function') {
-						data.callback = null;
-						callback.apply(data, data.result);
-					}
-				})
-				.catch(err => {
-					// this is the primary error handler
-					if (typeof data.callback === 'function') {
-						tunnel.log(err.stack);
-						data.callback(err);
-					} else {
-						console.log('Hook completion callback threw unhandled error:');
-						console.log(err.stack);
-						process.exit(1);
-					}
-				});
+				if (typeof callback === 'function') {
+					callback.apply(data, data.result);
+				}
+			})().catch(err => {
+				// this is the primary error handler
+				if (typeof callback === 'function') {
+					tunnel.log(err.stack);
+					callback(err);
+				} else {
+					this.logger.error('Hook completion callback threw unhandled error:');
+					this.logger.error(err.stack);
+					process.exit(1);
+				}
+			});
 		};
 	}
 
@@ -365,7 +376,7 @@ export default class CLI {
 		const promise = unique(Array.isArray(name) ? name : [ name ])
 			.reduce((promise, name) => promise.then(() => new Promise((resolve, reject) => {
 				const hook = this.createHook(name, data);
-				this.logger.trace(`Emitting ${name}`);
+				this.logger.trace(`Emitting ${highlight(name)}`);
 				hook((err, result) => {
 					err ? reject(err) : resolve(result);
 				});
@@ -500,12 +511,16 @@ export default class CLI {
 			}, config),
 			{
 				get: {
-					value: (key, defaultValue) => get(this, key, defaultValue)
+					value(key, defaultValue) {
+						return get(this, key, defaultValue);
+					}
 				},
 
 				// called by Android build to set the `android.sdkPath`
 				set: {
-					value: (key, value) => set(this, key, value)
+					value(key, value) {
+						set(this, key, value);
+					}
 				}
 			}
 		);
@@ -563,11 +578,10 @@ export default class CLI {
 		}
 
 		try {
-			// eslint-disable-next-line security/detect-non-literal-require
-			const appc = require(path.join(this.sdk.path, 'node_modules', 'node-appc'));
 			const jsfile = /\.js$/;
 			const ignore = /^[._]/;
 			const files = fs.statSync(dir).isDirectory() ? fs.readdirSync(dir).map(n => path.join(dir, n)) : [ dir ];
+			let appc;
 
 			for (const file of files) {
 				try {
@@ -592,6 +606,10 @@ export default class CLI {
 						}
 
 						if (!this.version || !mod.cliVersion || version.satisfies(this.version, mod.cliVersion)) {
+							// eslint-disable-next-line security/detect-non-literal-require
+							if (!appc) {
+								appc = require(path.join(this.sdk.path, 'node_modules', 'node-appc'));
+							}
 							mod.init && mod.init(this.logger, this.config, this, appc);
 							this.hooks.loadedFilenames.push(file);
 							this.logger.trace(`Loaded CLI hook: ${highlight(file)} ${note(`(${Date.now() - startTime} ms)`)}`);
