@@ -4,7 +4,6 @@ import isPlatformGuid from '@titanium-sdk/node-is-platform-guid';
 import tunnel from '../tunnel';
 
 import { expandPath } from 'appcd-path';
-import { isFile } from 'appcd-fs';
 import { sha1 } from 'appcd-util';
 
 exports.init = (logger, config, cli, appc) => {
@@ -146,6 +145,7 @@ exports.init = (logger, config, cli, appc) => {
 			let result;
 
 			if (builder.deployType === 'production') {
+				logger.info('Authentication required, getting account...');
 				account = await tunnel.getAccount();
 				if (!account) {
 					throw new Error('You must be authenticated to perform production builds');
@@ -157,6 +157,7 @@ exports.init = (logger, config, cli, appc) => {
 
 			if (isPlatformGuid(builder.tiapp.guid)) {
 				if (!account) {
+					logger.info('Authentication required, getting account...');
 					account = await tunnel.getAccount();
 					if (!account) {
 						throw new Error('You must be authenticated to build registered applications');

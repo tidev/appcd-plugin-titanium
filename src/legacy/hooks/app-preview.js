@@ -5,20 +5,22 @@
  * Installr API docs: https://help.installrapp.com/api/
  */
 
+import FormData from 'form-data';
 import fs from 'fs';
 import got from 'got';
-import path from 'path';
+import open from 'open';
+import tmp from 'tmp';
 import tunnel from '../tunnel';
 import { expandPath } from 'appcd-path';
 
 const endpoint = 'https://appbeta.axway.com';
 
-exports.init = (logger, config, cli, appc) => {
+exports.init = async (logger, config, cli, appc) => {
 	cli.on('build.config', data => {
 		data.result[1].appPreview = [
 			'App Preview Options',
 			{
-				'--app-preview':              'Deploy a build to App Preview',
+				'--app-preview':              'Deploy a distribution build to App Preview',
 				'--add [teams]':              'A comma-separated list of team names to add access to the App Preview build',
 				'--release-notes [text]':     'Release notes for the App Preview build',
 				'--invite [email_addresses]': 'A comma-separated list of email addresses to send the App Preview invites to',
@@ -27,180 +29,102 @@ exports.init = (logger, config, cli, appc) => {
 		];
 	});
 
-	cli.on('build.pre.compile', async data => {
-		//
-	});
+	let { add, appPreview, invite, notify, outputDir, releaseNotes, target } = cli.argv;
 
-	cli.on('build.finalize', async data => {
-		//
-	});
-};
-
-/*
-var logger, platform, config, appc, appcConfig, j, build_file, busy;
-
-j = request.jar();
-
-exports.init = function(_logger, _config, cli, _appc) {
-	if (process.argv.indexOf('--app-preview') !== -1) {
-		cli.addHook('build.pre.compile', configure);
-		cli.addHook('build.finalize', upload2AppPreview);
-	}
-	logger = _logger;
-	appcConfig = _config;
-	appc = _appc;
-};
-
-function configure(data, finished) {
-	config = {};
-	config.releaseNotes = data.cli.argv['release-notes'];
-	config.add = data.cli.argv['add'];
-	config.notify = data.cli.argv['notify'];
-	config.emails = data.cli.argv['invite'];
-
-	if (!config.releaseNotes || !config.notify) {
-		doPrompt(finished);
-	} else {
-		finished();
-	}
-}
-
-function doPrompt(finishedFunction) {
-	var f = {};
-
-	if (config.releaseNotes === undefined) {
-		f.releaseNotes = fields.text({
-			title: "Release Notes",
-			desc: "Enter release notes.",
-			validate: function(value, callback) {
-				callback(!value.length, value);
-			}
-		})
-	}
-	if (config.notify === undefined) {
-		f.notify = fields.select({
-			title: "Notify",
-			desc: "Notify previous testers on upload.",
-			promptLabel: "(y,n)",
-			options: ['__y__es', '__n__o']
-		});
-	}
-
-	var prompt = fields.set(f);
-
-	prompt.prompt(function(err, result) {
-		_.each(_.keys(result), function(key) {
-			config[key] = result[key];
-		});
-		finishedFunction();
-	});
-}
-
-var onUploadComplete = function(err, httpResponse, body) {
-	var resp = {};
-	if (err) {
-		logger.error(err);
-	} else {
-		if (httpResponse.statusCode != 200) {
-			logger.error('Error uploading to app preview, status code=' + httpResponse.statusCode);
-			return;
-		} else {
-			resp = JSON.parse(body);
-			if (resp.result != "success") {
-				logger.error(resp.message);
-				return;
-			}
-		}
-		logger.info("App uploaded successfully.");
-		resp = JSON.parse(body);
-		// check if we want to invite new testers
-		if (config.emails) {
-			logger.info('Adding tester(s) ' + config.emails + ' to latest build');
-			var r = request.post({
-				jar: j,
-				url: SERVER + '/apps/' + resp.appData.id + '/builds/' + resp.appData.latestBuild.id + '/team.json'
-			}, function optionalCallback(err, httpResponse, body) {
-				if (err) {
-					logger.error(err);
-					showFinalUrl(resp);
-				} else {
-					logger.info("Tester(s) invited successfully.");
-					showFinalUrl(resp);
-				}
-			});
-			var form = r.form();
-			form.append('emails', config.emails);
-		} else {
-			showFinalUrl(resp);
-		}
-	}
-}
-
-function showFinalUrl(resp) {
-	logger.info('Open ' + SERVER + '/dashboard/index#/apps/' + resp.appData.id + ' to configure your app in App Preview.')
-}
-
-function upload2AppPreview(data, finished) {
-	validate(data);
-	var sid = process.env.APPC_SESSION_SID;
-	logger.info('Uploading app to App Preview...please wait...');
-	var cookie = request.cookie('connect.sid=' + sid);
-	j.setCookie(cookie, SERVER);
-
-	var obj = {
-		url: SERVER + '/apps.json',
-		jar: j,
-		headers: {
-			"user-agent": 'Appcelerator CLI'
-		}
-	};
-
-	// configure proxy
-	if (process.env.APPC_CONFIG_PROXY) {
-		obj.proxy = process.env.APPC_CONFIG_PROXY;
-	}
-
-	var r = request.post(obj, onUploadComplete);
-
-	var form = r.form();
-	var file = fs.createReadStream(build_file);
-	var totalSize = fs.statSync(build_file).size;
-	var bytesRead = 0;
-	var lastPercent = 0;
-	file.on('data', function(chunk) {
-		bytesRead += chunk.length;
-		var currentPercent = Math.round((bytesRead / totalSize) * 100);
-		if (currentPercent != lastPercent && currentPercent % 5 == 0) {
-			logger.info("uploaded " + currentPercent + "%");
-			lastPercent = currentPercent;
-		}
-	});
-	form.append('qqfile', file);
-	form.append('releaseNotes', config.releaseNotes);
-	form.append('notify', config.notify.toString());
-	if (config.add) {
-		form.append('add', config.add.toString());
-	}
-}
-
-function validate(data) {
-
-	platform = data.cli.argv.platform;
-
-	if (['android', 'ios'].indexOf(platform) === -1) {
-		logger.error("Only android and ios support with --app-preview flag");
+	if (!appPreview) {
 		return;
 	}
 
-	if (data.cli.argv.platform === "android") {
-		build_file = data.apkFile
-	} else {
-		if (data.buildManifest.outputDir === undefined && data.iosBuildDir === undefined) {
-			logger.error("Output directory must be defined to use --app-preview flag");
-			return;
-		}
-		build_file = afs.resolvePath(path.join(data.buildManifest.outputDir, data.buildManifest.name + ".ipa"));
+	logger.info('Authentication required, getting account...');
+	const account = await tunnel.getAccount();
+	if (!account) {
+		throw new Error('You must be authenticated to use App Preview');
 	}
 
-}
-*/
+	if (!account.org.entitlements.appPreview) {
+		throw new Error(`Your current organization "${account.org.name}" is not entitled to App Preview\nPlease upgrade your plan by visiting https://www.appcelerator.com/pricing/`);
+	}
+
+	cli.on('build.pre.compile', async ({ platformName }) => {
+		if (platformName !== 'android' && platformName !== 'iphone') {
+			throw new Error('App Preview is only supported when building for Android or iOS');
+		}
+
+		if (!target?.startsWith('dist-')) {
+			throw new Error('App Preview can only be used when doing a distribution build');
+		}
+
+		if (platformName === 'iphone' && !outputDir) {
+			if (target === 'dist-appstore') {
+				logger.info('App Preview is forcing App Store build to skip Xcode archive');
+			}
+			outputDir = cli.argv.outputDir = cli.argv['output-dir'] = tmp.tmpNameSync({ prefix: 'titanium-app-preview-' });
+		}
+
+		// TODO: prompt for releaseNotes and notify
+	});
+
+	cli.on('build.finalize', async ({ apkFile, platformName, tiapp }) => {
+		const file = platformName === 'android' ? apkFile : expandPath(outputDir, `${tiapp.name}.ipa`);
+
+		const form = new FormData();
+		form.append('qqfile', fs.createReadStream(file));
+		form.append('releaseNotes', releaseNotes);
+		form.append('notify', notify);
+		if (add) {
+			form.append('add', add);
+		}
+
+		logger.info('App Preview uploading build...');
+
+		const post = async (url, body) => {
+			try {
+				return (await got(url, {
+					body,
+					headers: {
+						Accept: 'application/json',
+						Cookie: `connect.sid=${account.sid}`,
+						'User-Agent': 'Titanium CLI'
+					},
+					method: 'post',
+					responseType: 'json',
+					retry: 0
+				})).body;
+			} catch (err) {
+				const msg = err.response?.body?.message || err.response?.body?.description;
+				err.message = `App Preview request failed: ${msg || err.message}`;
+
+				const code = err.response?.body?.code;
+				if (code) {
+					err.code = code;
+				}
+
+				throw err;
+			}
+		};
+
+		const { appData, message, result } = await post(`${endpoint}/apps.json`, form);
+
+		if (result !== 'success') {
+			throw new Error(`App Preview failed to upload build: ${message || 'Unknown error'}`);
+		}
+
+		logger.info('App Preview uploaded build successfully');
+
+		// check if we want to invite new testers
+		const emails = invite && invite.split(',').map(s => s.trim()).filter(Boolean);
+		if (emails?.length) {
+			try {
+				logger.info(`Adding tester${emails.length === 1 ? '' : 's'}: ${emails.join(', ')}`);
+				const form = new FormData();
+				form.append('emails', emails.join(','));
+				await post(`${endpoint}/apps/${appData.id}/builds/${appData.latestBuild.id}/team.json`, form);
+				logger.info(`Tester${emails.length === 1 ? '' : 's'} successfully invited`);
+			} catch (err) {
+				logger.warn(`App Preview failed to invite users: ${err.message}`);
+			}
+		}
+
+		open(`${endpoint}/dashboard/index#/apps/${appData.id}`);
+	});
+};
