@@ -65,13 +65,17 @@ export async function exec({ argv, command, config, console, cwd, prompt }) {
 		command,
 		config:           config || {},
 		cwd:              projectDir,
+		fingerprint:      (await appcd.call('/appcd/status/system/mid')).response,
 		promptingEnabled: !!prompt,
 		sdkPath:          sdkInfo.path,
 		type:             'exec'
 	};
 
+	// map `build` and `run` to the correct legacy `build` command
 	if (command === 'build') {
 		data.argv.buildOnly = true;
+	} else if (command === 'run') {
+		data.command = 'build';
 	}
 
 	// step 4: spawn the legacy cli
@@ -130,7 +134,7 @@ export async function spawnLegacyCLI({ console, data, prompt }) {
 						const response = await appcd.call(path, data);
 						child.send({ id, response, type: 'response' });
 					} catch (err) {
-						child.send({ error: err.message, id, type: 'error' });
+						child.send({ code: err.code, error: err.message, id, stack: err.stack, type: 'error' });
 					}
 				}
 

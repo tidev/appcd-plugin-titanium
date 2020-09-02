@@ -1,4 +1,4 @@
-/* eslint-disable promise/no-callback-in-promise */
+/* eslint-disable promise/no-callback-in-promise, security/detect-non-literal-require */
 
 import Context from './context';
 import fs from 'fs-extra';
@@ -132,12 +132,10 @@ export default class CLI {
 			throw new TypeError('Expected options to be an object');
 		}
 
-		this.config = this.initConfig(opts.config);
-
+		this.config           = this.initConfig(opts.config);
+		this.fingerprint      = opts.fingerprint;
 		this.promptingEnabled = !!opts.promptingEnabled;
-
-		// validate the sdk path
-		this.sdk = new sdk.TitaniumSDK(opts.sdkPath);
+		this.sdk              = new sdk.TitaniumSDK(opts.sdkPath);
 
 		// initialize the CLI argument values
 		this.argv = {
@@ -294,21 +292,22 @@ export default class CLI {
 				// call all pre filters
 				await pres
 					// eslint-disable-next-line promise/no-nesting
-					.reduce((promise, pre) => promise.then(() => new Promise((resolve, reject) => {
+					.reduce((promise, pre) => promise.then(async () => {
 						if (pre.length >= 2) {
-							pre.call(ctx, data, (err, newData) => {
-								if (err) {
-									return reject(err);
-								} else if (newData) {
-									data = newData;
-								}
-								resolve();
+							await new Promise((resolve, reject) => {
+								pre.call(ctx, data, (err, newData) => {
+									if (err) {
+										return reject(err);
+									} else if (newData) {
+										data = newData;
+									}
+									resolve();
+								});
 							});
 						} else {
-							pre.call(ctx, data);
-							resolve();
+							await pre.call(ctx, data);
 						}
-					})), Promise.resolve());
+					}), Promise.resolve());
 
 				if (data.fn) {
 					data.result = await new Promise(resolve => {
@@ -335,7 +334,7 @@ export default class CLI {
 								});
 							});
 						} else {
-							post.call(ctx, data);
+							await post.call(ctx, data);
 						}
 					}), Promise.resolve());
 
@@ -376,7 +375,6 @@ export default class CLI {
 		const promise = unique(Array.isArray(name) ? name : [ name ])
 			.reduce((promise, name) => promise.then(() => new Promise((resolve, reject) => {
 				const hook = this.createHook(name, data);
-				this.logger.trace(`Emitting ${highlight(name)}`);
 				hook((err, result) => {
 					err ? reject(err) : resolve(result);
 				});
@@ -587,9 +585,7 @@ export default class CLI {
 				try {
 					if (fs.statSync(file).isFile() && jsfile.test(file) && !ignore.test(path.basename(path.dirname(file)))) {
 						const startTime = Date.now();
-
-						// eslint-disable-next-line security/detect-non-literal-require
-						var mod = require(file);
+						const mod = require(file);
 						if (mod.id) {
 							if (!Array.isArray(this.hooks.ids[mod.id])) {
 								this.hooks.ids[mod.id] = [];
@@ -606,7 +602,6 @@ export default class CLI {
 						}
 
 						if (!this.version || !mod.cliVersion || version.satisfies(this.version, mod.cliVersion)) {
-							// eslint-disable-next-line security/detect-non-literal-require
 							if (!appc) {
 								appc = require(path.join(this.sdk.path, 'node_modules', 'node-appc'));
 							}
@@ -618,6 +613,8 @@ export default class CLI {
 						}
 					}
 				} catch (ex) {
+					this.logger.trace(`Error loading hook: ${highlight(file)}`);
+					this.logger.trace(ex.stack);
 					this.hooks.erroredFilenames.push(file);
 					this.hooks.errors[file] = ex;
 				}

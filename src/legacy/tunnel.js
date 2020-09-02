@@ -1,5 +1,6 @@
 import CLI from './ti/cli';
 import { EventEmitter } from 'events';
+import { makeSerializable } from 'appcd-util';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -55,6 +56,22 @@ class Tunnel extends EventEmitter {
 	}
 
 	/**
+	 * Retrieves the active account or authenticates if you're not logged in.
+	 *
+	 * @returns {Promise} Resolves the account info.
+	 */
+	async getAccount() {
+		if (!this._account) {
+			const { response: accounts } = await this.call('/amplify/1.x/auth');
+			this._account = accounts.find(a => a.active) || accounts[0];
+		}
+		if (!this._account) {
+			this._account = (await this.call('/amplify/1.x/auth/login')).response;
+		}
+		return this._account;
+	}
+
+	/**
 	 * Writes a message to the debug log.
 	 *
 	 * @param {...*} args - A message or data to log.
@@ -64,7 +81,7 @@ class Tunnel extends EventEmitter {
 		this.emit('tick');
 		if (process.connected) {
 			process.send({
-				args,
+				args: makeSerializable(args),
 				type: 'log'
 			});
 		}
@@ -88,7 +105,7 @@ class Tunnel extends EventEmitter {
 				} else {
 					await cli.command.load();
 					process.send({
-						data: cli.command.conf,
+						data: makeSerializable(cli.command.conf),
 						type: 'json'
 					});
 				}
@@ -98,13 +115,13 @@ class Tunnel extends EventEmitter {
 				this.log('Disconnecting IPC tunnel from parent and letting process exit gracefully');
 				process.disconnect();
 			} catch (err) {
-				process.send({
+				process.send(makeSerializable({
 					...err,
 					message: err.message || err,
 					stack: err.stack,
 					status: err.status || 500,
 					type: 'error'
-				});
+				}));
 				process.exit(1);
 			}
 			return;
@@ -123,7 +140,10 @@ class Tunnel extends EventEmitter {
 				return resolve(data.answer);
 
 			case 'error':
-				return reject(new Error(data.error));
+				return reject(Object.defineProperties(new Error(data.error), {
+					code:  { value: data.code },
+					stack: { value: data.stack || 'Error originated in parent process and stack not available' }
+				}));
 
 			case 'response':
 				return resolve(data.response);
@@ -143,7 +163,7 @@ class Tunnel extends EventEmitter {
 			if (process.connected) {
 				data.id = uuidv4();
 				this.pending[data.id] = { resolve, reject };
-				process.send(data);
+				process.send(makeSerializable(data));
 			} else {
 				reject(new Error(`Can't send "${data.type}" message to parent because IPC channel has been closed`));
 			}
@@ -159,10 +179,10 @@ class Tunnel extends EventEmitter {
 	telemetry(payload) {
 		this.emit('tick');
 		if (process.connected) {
-			process.send({
+			process.send(makeSerializable({
 				payload,
 				type: 'telemetry'
-			});
+			}));
 		}
 	}
 }

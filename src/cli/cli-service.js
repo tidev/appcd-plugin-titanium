@@ -6,18 +6,12 @@ import path from 'path';
 
 import { get } from 'appcd-util';
 import { isFile } from 'appcd-fs';
-import { capitalize, parseVersion } from '../lib/util';
-import { spawnLegacyCLI } from '../legacy';
+import { loadOptions } from './run-legacy';
+import { parseVersion } from '../lib/util';
 // import { Tiapp } from 'titaniumlib';
 
 const { log } = appcd.logger('cli-service');
 const { highlight } = appcd.logger.styles;
-
-/**
- * A cache of platform specific build options by Titanium SDK path.
- * @type {Object}
- */
-const buildOptionsCache = {};
 
 /**
  * Defines a service endpoint for defining, processing, and dispatching Titanium CLI commands.
@@ -52,12 +46,15 @@ export default class CLIService extends Dispatcher {
 			version: ({ data }) => parseVersion(data.userAgent)
 		});
 
+		// inject the titanium config into the command data object before parsing starts so that
+		// it's available to the command callback
+		cli.on('parse', ({ data }) => {
+			data.config = cfg.titanium;
+		});
+
 		// we need to add platform specific options for the build/run help, so first we listen for
 		// the help command, then we add in the options before the help is generated
-		cli.on('exec', async ({ cmd, data, contexts }) => {
-			// inject the titanium config into the command data object
-			data.config = cfg.titanium;
-
+		cli.on('exec', async ({ cmd, contexts, data }) => {
 			// we need the help command, the build/run command, and a cwd containing a tiapp
 			cmd = data?.cwd && cmd?.name === 'help' && contexts[1];
 
@@ -71,71 +68,8 @@ export default class CLIService extends Dispatcher {
 			}
 
 			cmd.on('generateHelp', async ctx => {
-				// FIX ME!
-				// const tiapp = new Tiapp({ file: tiappFile });
-				// const sdk = tiapp.get('sdk-version');
-				const sdk = '9.0.3.GA';
-				const sdkInfo = (await appcd.call('/sdk/find', { data: { name: sdk } })).response;
-
-				let buildOptions = buildOptionsCache[sdkInfo.path];
-
-				if (!Array.isArray(buildOptions)) {
-					// load the Android and iOS options directly from the SDK
-					const config = await spawnLegacyCLI({
-						data: {
-							command: 'build',
-							sdkPath: sdkInfo.path,
-							type:    'help'
-						}
-					});
-
-					// copy the platform-specific options into a cli-kit friendly format
-					buildOptions = [];
-
-					const lv = {};
-					const lvRegExp = /^liveview/;
-
-					for (const key of Object.keys(config)) {
-						if (key === 'flags' || key === 'options') {
-							// we skip the top level build flags/options because they are either
-							// already defined in the command or are unsupported
-						} else if (key === 'platforms') {
-							for (const conf of Object.values(config[key])) {
-								const options = {};
-
-								for (const [ name, flag ] of Object.entries(conf.flags)) {
-									if (!flag.hidden) {
-										(lvRegExp.test(name) ? lv : options)[`--${name}`] = { desc: capitalize(flag.desc) };
-									}
-								}
-
-								for (const [ name, option ] of Object.entries(conf.options)) {
-									if (!option.hidden) {
-										let format = option.abbr ? `-${option.abbr}, ` : '';
-										format += `--${name} ${option.required ? '<' : '['}${option.hint || 'value'}${option.required ? '>' : ']'}`;
-										(lvRegExp.test(name) ? lv : options)[format] = { desc: capitalize(option.desc) };
-									}
-								}
-
-								if (Object.keys(options).length) {
-									buildOptions.push(`${conf.title} build options`, options);
-								}
-							}
-						} else if (Array.isArray(config[key])) {
-							buildOptions.push.apply(buildOptions, config[key]);
-						}
-					}
-
-					if (Object.keys(lv).length) {
-						buildOptions.push('LiveView Options', lv);
-					}
-
-					buildOptionsCache[sdkInfo.path] = buildOptions;
-				}
-
-				if (buildOptions.length) {
-					ctx.option(buildOptions);
-				}
+				const sdk = '9.0.3.GA'; // data.tiapp.get('sdk-version');
+				await loadOptions({ config: data.config, ctx, sdk });
 			});
 		});
 

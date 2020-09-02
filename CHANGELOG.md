@@ -26,6 +26,7 @@
  * feat: Support for Titanium-specific telemetry.
  * refactor: Updated to latest cli-kit with support for the new client/server architecture.
  * refactor: Updated `config` command actions to be subcommands with improved help output.
+ * fix(legacy): Improved logging of uncaught exceptions and rejections.
  * chore: Added plugin API version 2.x.
  * chore: Transpile for Node 10 instead of Node 8. Not a breaking change as appcd has always
    guaranteed Node 10 or newer.

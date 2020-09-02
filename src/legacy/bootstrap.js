@@ -28,5 +28,5 @@ process.exit = code => Promise
 	.then(() => exit(code));
 
 process
-	.on('uncaughtException', err => console.error('Caught unhandled exception:', err))
-	.on('unhandledRejection', (reason, p) => console.error('Caught unhandled rejection at: Promise ', p, reason));
+	.on('uncaughtException', err => console.error(`Caught exception: ${err.stack || err.toString()}`))
+	.on('unhandledRejection', err => console.error(`Unhandled rejection: ${err.stack || err.toString()}`));

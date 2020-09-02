@@ -1,14 +1,17 @@
 /**
- * Installr API docs: https://help.installrapp.com/api/
+ * This code is based on https://github.com/jeffbonnes/appc-app-preview-cli-hook by Jeff Bonnes and
+ * licensed under the MIT license.
  *
- * This is the App Preview CLI and validation code. The App Preview Titanium CLI plugin is located
- * in `src/legacy/hooks/app-preview-hook.js`.
+ * Installr API docs: https://help.installrapp.com/api/
  */
 
-// const got = require('got');
-// const path = require('path');
+import fs from 'fs';
+import got from 'got';
+import path from 'path';
+import tunnel from '../tunnel';
+import { expandPath } from 'appcd-path';
 
-// const endpoint = 'https://appbeta.axway.com';
+const endpoint = 'https://appbeta.axway.com';
 
 exports.init = (logger, config, cli, appc) => {
 	cli.on('build.config', data => {
@@ -24,33 +27,74 @@ exports.init = (logger, config, cli, appc) => {
 		];
 	});
 
-	// if (!cli.argv.appPreview) {
-	// 	return;
-	// }
+	cli.on('build.pre.compile', async data => {
+		//
+	});
 
-	// cli.on('build.finalize', function (data, callback) {
-	// 	let artifact;
-	// 	if (cli.argv.platform === 'android') {
-	// 		artifact = data.apkFile;
-	// 	} else if (cli.argv.platform === 'ios' && cli.argv.outputDir) {
-	// 		artifact = path.join(cli.argv.outputDir, `${this.tiapp.name}.ipa`);
-	// 	} else {
-	// 		throw new Error();
-	// 	}
-	// 	// 	if (data.buildManifest.outputDir === undefined && data.iosBuildDir === undefined) {
-	// 	// 		logger.error("Output directory must be defined to use --app-preview flag");
-	// 	// 		return;
-	// 	// 	}
-	// 	// 	build_file = afs.resolvePath(path.join(data.buildManifest.outputDir, data.buildManifest.name + ".ipa"));
-	// 	// }
-	// });
+	cli.on('build.finalize', async data => {
+		//
+	});
 };
 
 /*
-var _ = require("lodash");
 var logger, platform, config, appc, appcConfig, j, build_file, busy;
 
 j = request.jar();
+
+exports.init = function(_logger, _config, cli, _appc) {
+	if (process.argv.indexOf('--app-preview') !== -1) {
+		cli.addHook('build.pre.compile', configure);
+		cli.addHook('build.finalize', upload2AppPreview);
+	}
+	logger = _logger;
+	appcConfig = _config;
+	appc = _appc;
+};
+
+function configure(data, finished) {
+	config = {};
+	config.releaseNotes = data.cli.argv['release-notes'];
+	config.add = data.cli.argv['add'];
+	config.notify = data.cli.argv['notify'];
+	config.emails = data.cli.argv['invite'];
+
+	if (!config.releaseNotes || !config.notify) {
+		doPrompt(finished);
+	} else {
+		finished();
+	}
+}
+
+function doPrompt(finishedFunction) {
+	var f = {};
+
+	if (config.releaseNotes === undefined) {
+		f.releaseNotes = fields.text({
+			title: "Release Notes",
+			desc: "Enter release notes.",
+			validate: function(value, callback) {
+				callback(!value.length, value);
+			}
+		})
+	}
+	if (config.notify === undefined) {
+		f.notify = fields.select({
+			title: "Notify",
+			desc: "Notify previous testers on upload.",
+			promptLabel: "(y,n)",
+			options: ['__y__es', '__n__o']
+		});
+	}
+
+	var prompt = fields.set(f);
+
+	prompt.prompt(function(err, result) {
+		_.each(_.keys(result), function(key) {
+			config[key] = result[key];
+		});
+		finishedFunction();
+	});
+}
 
 var onUploadComplete = function(err, httpResponse, body) {
 	var resp = {};
@@ -97,6 +141,7 @@ function showFinalUrl(resp) {
 }
 
 function upload2AppPreview(data, finished) {
+	validate(data);
 	var sid = process.env.APPC_SESSION_SID;
 	logger.info('Uploading app to App Preview...please wait...');
 	var cookie = request.cookie('connect.sid=' + sid);
@@ -137,81 +182,25 @@ function upload2AppPreview(data, finished) {
 		form.append('add', config.add.toString());
 	}
 }
-*/
 
-/*
-function INVALID_ARGUMENT({ msg, code, prompt }) {
-	const err = new TypeError(msg);
-	if (code !== undefined) {
-		err.code = code;
-	}
-	if (prompt !== undefined) {
-		err.prompt = prompt;
-	}
-	return err;
-}
+function validate(data) {
 
-export async function validate(argv) {
-	if (!argv.appPreview) {
+	platform = data.cli.argv.platform;
+
+	if (['android', 'ios'].indexOf(platform) === -1) {
+		logger.error("Only android and ios support with --app-preview flag");
 		return;
 	}
 
-	const { response: account } = await appcd.call('/amplify/1.x/auth/active');
-
-	if (!account) {
-		const err = new Error('Log in required to use App Preview');
-		err.details = `Please login by running: ${highlight('ti login')}`;
-		throw err;
-	}
-
-	if (!account.org?.entitlements?.appPreview) {
-		// eslint-disable-next-line no-throw-literal
-		const err = new Error('Your account is not entitled to use App Preview');
-		err.details = `Your current organization is ${highlight(`"${account.org.name}"`)}.\n`;
-		if (account.orgs.length > 1) {
-			err.details += `If this is not the correct organization, run ${highlight('"ti switch"')} to change to another organization.\n`;
+	if (data.cli.argv.platform === "android") {
+		build_file = data.apkFile
+	} else {
+		if (data.buildManifest.outputDir === undefined && data.iosBuildDir === undefined) {
+			logger.error("Output directory must be defined to use --app-preview flag");
+			return;
 		}
-		err.details += 'To upgrade your account, visit https://billing.axway.com/.';
-		throw err;
+		build_file = afs.resolvePath(path.join(data.buildManifest.outputDir, data.buildManifest.name + ".ipa"));
 	}
 
-	log(`Active account org ${highlight(`"${account.org.name}"`)} is entitled to App Preview!`);
-
-	const { platform } = argv;
-	if (platform !== 'android' && platform !== 'ios') {
-		const err = new Error(`App Preview does not support the platform "${platform}"`);
-		err.details = 'Only Android and iOS platforms are supported.';
-		throw err;
-	}
-
-	if (platform === 'ios' && !argv.outputDir) {
-		//
-	}
-
-	if (argv.releaseNotes === undefined) {
-		throw INVALID_ARGUMENT({
-			msg: 'Expected App Preview release notes or path to release notes file',
-			prompt: {
-				message: 'Please enter release notes or a path to a release notes file',
-				name:    'releaseNotes',
-				type:    'text'
-			}
-		});
-	}
-
-	if (argv.notify === undefined) {
-		throw INVALID_ARGUMENT({
-			msg: 'Expected App Preview notification preference',
-			prompt: {
-				disabled: 'No',
-				enabled:  'Yes',
-				initial:  true,
-				message:  'Do you want to notify previous testers on upload?',
-				name:     'notify',
-				required: true,
-				type:     'toggle'
-			}
-		});
-	}
 }
 */

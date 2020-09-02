@@ -1,5 +1,6 @@
 /* eslint-disable promise/no-callback-in-promise */
 
+import path from 'path';
 import tunnel from '../tunnel';
 import * as version from '../../lib/version';
 import { snooplogg } from 'cli-kit';
@@ -26,7 +27,7 @@ export function patch({ load, request, parent, isMain }) {
 					issues:        [],
 					provisioning:  {},
 					selectedXcode: null,
-					simulators:    info.simulators,
+					simulators:    processSimulators(info.simulators),
 					teams:         Object.entries(info.teams).map(([ id, name ]) => ({ id, name })),
 					xcode:         {}
 				};
@@ -55,7 +56,7 @@ export function patch({ load, request, parent, isMain }) {
 	 * @param {String} [options.minIosVersion] - The minimum iOS SDK to detect.
 	 * @param {String} [options.minWatchosVersion] - The minimum watchOS SDK to detect.
 	 * @param {String|Array<String>} [options.searchPath] - One or more path to scan for Xcode installations.
-	 * @param {String|SimHandle} simHandleOrUDID - A iOS sim handle or the UDID of the iOS Simulator to launch or null if you want ioslib to pick one.
+	 * @param {String|SimHandle} [options.simHandleOrUDID] - A iOS sim handle or the UDID of the iOS Simulator to launch or null if you want ioslib to pick one.
 	 * @param {String} [options.simType=iphone] - The type of simulator to launch. Must be either "iphone" or "ipad". Only applicable when udid is not specified.
 	 * @param {String} [options.simVersion] - The iOS version to boot. Defaults to the most recent version.
 	 * @param {String} [options.supportedVersions] - A string with a version number or range to check if an Xcode install is supported.
@@ -532,4 +533,15 @@ function processXcodes(info, results, opts) {
 			message: 'No Xcode installations found.\nYou can download it from the App Store or from https://developer.apple.com/xcode/.'
 		});
 	}
+}
+
+function processSimulators(simulators) {
+	for (const vers of Object.values(simulators)) {
+		for (const sims of Object.values(vers)) {
+			for (const sim of sims) {
+				sim.dataDir = path.join(sim.deviceDir, 'data');
+			}
+		}
+	}
+	return simulators;
 }

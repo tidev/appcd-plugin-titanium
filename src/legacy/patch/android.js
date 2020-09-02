@@ -19,6 +19,7 @@ export function patch() {
 		 * @param {Object} opts.packageJson - The Android platform-specific `package.json`.
 		 * @param {Function} callback - A function to call with the detection results. Note that this
 		 * function receives a single argument with the info. Any errors must be silenced.
+		 * @returns {undefined}
 		 */
 		detect(config = {}, { packageJson } = {}, callback) {
 			if (cache) {
