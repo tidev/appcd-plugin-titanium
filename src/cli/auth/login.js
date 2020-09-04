@@ -62,7 +62,13 @@ export async function login({ argv, console, setExitCode, terminal }) {
 	}
 
 	try {
-		return (await appcd.call('/amplify/1.x/auth/login', { data })).response;
+		const { response: account } = await appcd.call('/amplify/1.x/auth/login', { data });
+		try {
+			await appcd.call('/module/check-downloads', { data: { accountName: account.name } });
+		} catch (err) {
+			// squelch
+		}
+		return account;
 	} catch (err) {
 		if (err.code === 'EAUTHENTICATED') {
 			const { account } = err;

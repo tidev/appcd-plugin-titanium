@@ -65,6 +65,7 @@ export default class SDKService extends Dispatcher {
 
 	/**
 	 * Install SDK service handler.
+	 *
 	 * Note: This method does not return a promise because we want the response to be sent
 	 * immediately and receive install events as they occur. It relies on the
 	 *
@@ -75,7 +76,7 @@ export default class SDKService extends Dispatcher {
 		const { data, params } = request;
 
 		sdk.install({
-			downloadDir: this.config.home && expandPath(this.config.home, 'downloads'),
+			downloadDir: this.config.titanium.home && expandPath(this.config.titanium.home, 'downloads'),
 			keep:        data.keep,
 			onProgress(evt) {
 				if (data.progress) {

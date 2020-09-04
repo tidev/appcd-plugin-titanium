@@ -77,6 +77,12 @@ export default {
 			})).response;
 		}
 
+		try {
+			await appcd.call('/module/check-downloads', { data: { accountName: account.name } });
+		} catch (err) {
+			// squelch
+		}
+
 		if (argv.json) {
 			console.log(JSON.stringify(account, null, 2));
 		} else {

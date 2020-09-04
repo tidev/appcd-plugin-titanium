@@ -194,10 +194,12 @@ exports.init = (logger, config, cli, appc) => {
 		priority: 0
 	});
 
-	// cli.on('build.post.compile', {
-	// 	priority: 10000,
-	// 	post: postcompileHook
-	// });
+	cli.on('build.post.compile', {
+		priority: 10000,
+		post: async function (builder) {
+			//
+		}
+	});
 
 	const mutator = {
 		pre: function (data) {
