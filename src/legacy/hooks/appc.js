@@ -8,6 +8,8 @@ import { sha1 } from 'appcd-util';
 
 exports.init = (logger, config, cli, appc) => {
 	const homeDir = expandPath(config.get('home'));
+	let account;
+	let isRegistered = false;
 
 	async function generateDevCert({ account }) {
 		logger.info('Generating developer certificate and private/public keys');
@@ -141,7 +143,6 @@ exports.init = (logger, config, cli, appc) => {
 
 	cli.on('build.pre.compile', {
 		post: async function (builder) {
-			let account;
 			let result;
 
 			if (builder.deployType === 'production') {
@@ -155,7 +156,9 @@ exports.init = (logger, config, cli, appc) => {
 				}
 			}
 
-			if (isPlatformGuid(builder.tiapp.guid)) {
+			isRegistered = isPlatformGuid(builder.tiapp.guid);
+
+			if (isRegistered) {
 				if (!account) {
 					logger.info('Authentication required, getting account...');
 					account = await tunnel.getAccount();
@@ -198,8 +201,19 @@ exports.init = (logger, config, cli, appc) => {
 
 	cli.on('build.post.compile', {
 		priority: 10000,
-		post: async function (builder) {
-			//
+		async post({ projectDir }) {
+			if (!isRegistered || !account) {
+				return;
+			}
+
+			await tunnel.call('/amplify/1.x/ti/app/set', {
+				data: {
+					accountName: account.name,
+					tiapp: await fs.readFile(path.join(projectDir, 'tiapp.xml', 'utf-8'))
+				}
+			});
+
+			logger.trace('Updated platform with tiapp metadata');
 		}
 	});
 
