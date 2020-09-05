@@ -189,6 +189,8 @@ exports.init = (logger, config, cli, appc) => {
 						builder.forceRebuild = true;
 					}
 				}
+
+				// TODO: what should we do with `result`? Appc CLI merges it into the Titanium CLI config
 			}
 		},
 		priority: 0

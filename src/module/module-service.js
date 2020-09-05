@@ -29,19 +29,25 @@ export default class ModuleService extends Dispatcher {
 		this.register('/', (ctx, next) => {
 			ctx.path = '/list';
 			return next();
-		});
-		this.register('/check-downloads', ctx => this.checkDownloads(ctx.request.data.accountName));
-		this.register('/list', this.installed);
-		this.register('/locations', () => modules.getPaths());
+		})
+			.register('/check-downloads', ctx => this.checkDownloads(ctx.request.data.accountName))
+			.register('/install/:name?',  ctx => this.install(ctx))
+			.register('/list',            this.installed)
+			.register('/locations',       () => modules.getPaths());
 
 		const check = async () => {
 			try {
 				const { response: accounts } = await appcd.call('/amplify/1.x/auth');
 				const account = accounts.find(a => a.active) || accounts[0];
 				await this.checkDownloads(account?.name);
-				log('Checking for updated downloads again in 1 hour');
+				log('Successfully checked downloads, checking again in 1 hour');
 			} catch (err) {
-				log(`Failed to check downloads, trying again in 1 hour: ${err.message}`);
+				if (err.code === 'EAUTH') {
+					log('Not authenticated, checking downloads again in 1 hour');
+				} else {
+					log(`Failed to check downloads: ${err.message}`);
+					log('Trying again in 1 hour');
+				}
 			}
 		};
 		this.checkTimer = setInterval(check, 1000 * 60 * 60); // check every hour
@@ -58,7 +64,9 @@ export default class ModuleService extends Dispatcher {
 	 */
 	async checkDownloads(accountName) {
 		if (!accountName || typeof accountName !== 'string') {
-			throw new TypeError('Expected account name');
+			const err = new TypeError('Expected account name');
+			err.code = 'EAUTH';
+			throw err;
 		}
 
 		const { response: downloads } = await appcd.call('/amplify/1.x/ti/downloads', {
@@ -129,7 +137,8 @@ export default class ModuleService extends Dispatcher {
 	 * Install module service handler.
 	 *
 	 * Note: This method does not return a promise because we want the response to be sent
-	 * immediately and receive install events as they occur. It relies on the
+	 * immediately and receive install events as they occur. It relies on the response stream to
+	 * close.
 	 *
 	 * @param {Context} ctx - A request context.
 	 * @access private

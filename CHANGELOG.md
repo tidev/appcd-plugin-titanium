@@ -24,6 +24,7 @@
  * feat(sdk): Added `find` endpoint to SDK service to get info about an installed Titanium SDK.
  * feat(sdk): Added progress bars during SDK installation.
  * feat(module): Added `/module/check-downloads` endpoint.
+ * feat(module): Added `/module/install` endpoint.
  * feat(module): Added automatic checking of new Titanium module downloads.
  * feat: Support for Titanium-specific telemetry.
  * refactor: Updated to latest cli-kit with support for the new client/server architecture.

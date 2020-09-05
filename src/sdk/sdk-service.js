@@ -67,7 +67,8 @@ export default class SDKService extends Dispatcher {
 	 * Install SDK service handler.
 	 *
 	 * Note: This method does not return a promise because we want the response to be sent
-	 * immediately and receive install events as they occur. It relies on the
+	 * immediately and receive install events as they occur. It relies on the response stream to
+	 * close.
 	 *
 	 * @param {Context} ctx - A request context.
 	 * @access private

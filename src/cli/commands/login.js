@@ -11,11 +11,13 @@ export default {
 		'--realm [realm]':           { hidden: true },
 		'--force':                   'Re-authenticate even if the account is already authenticated',
 		'--json': {
-			callback({ ctx }) {
-				while (ctx.parent) {
-					ctx = ctx.parent;
+			callback({ ctx, value }) {
+				if (value) {
+					while (ctx.parent) {
+						ctx = ctx.parent;
+					}
+					ctx.banner = false;
 				}
-				ctx.banner = false;
 			},
 			desc: 'Outputs accounts as JSON'
 		},
