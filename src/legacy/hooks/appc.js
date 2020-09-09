@@ -142,7 +142,7 @@ exports.init = (logger, config, cli, appc) => {
 	});
 
 	cli.on('build.pre.compile', {
-		post: async function (builder) {
+		async post(builder) {
 			let result;
 
 			if (builder.deployType === 'production') {
@@ -193,7 +193,7 @@ exports.init = (logger, config, cli, appc) => {
 					}
 				}
 
-				// TODO: what should we do with `result`? Appc CLI merges it into the Titanium CLI config
+				// `result` needed for remote encryption prep hook and build update
 			}
 		},
 		priority: 0

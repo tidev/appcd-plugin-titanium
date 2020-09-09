@@ -659,21 +659,18 @@ export default class CLI {
 							return result !== undefined ? result : value;
 						},
 						name,
-						order:            opt.order,
-						required:         opt.required,
-						validate:         opt.validate,
-						values:           !opt.skipValueCheck && Array.isArray(opt.values) ? opt.values : null,
-						verifyIfRequired: opt.verifyIfRequired
+						orig: opt,
+						values: !opt.skipValueCheck && Array.isArray(opt.values) ? opt.values : null
 					});
 				}
 			}
 		}
 
 		options.sort((a, b) => {
-			if (a.order && b.order) {
-				return a.order - b.order;
+			if (a.orig.order && b.orig.order) {
+				return a.orig.order - b.orig.order;
 			}
-			return a.order ? -1 : b.order ? 1 : 0;
+			return a.orig.order ? -1 : b.orig.order ? 1 : 0;
 		});
 
 		const createQuestion = (opt, error) => {
@@ -686,6 +683,11 @@ export default class CLI {
 					type:    'select'
 				};
 			}
+
+			if (typeof opt.orig?.prompt === 'function') {
+				// TODO!!!
+			}
+
 			return {
 				error,
 				message: `Please enter a valid ${opt.name}`,
@@ -696,21 +698,21 @@ export default class CLI {
 
 		// step 2: determine invalid or missing options
 		for (const opt of options) {
-			const { name } = opt;
+			const { name, orig, values } = opt;
 			const value = this.argv[name];
 
 			if (value === undefined) {
 				// we need to check if the option is required
 				// sometimes required options such as `--device-id` allow an undefined value in the
 				// case when the value is derived by the config or is autoselected
-				if (opt.required && (typeof opt.verifyIfRequired !== 'function' || await new Promise(opt.verifyIfRequired))) {
+				if (orig.required && (typeof orig.verifyIfRequired !== 'function' || await new Promise(orig.verifyIfRequired))) {
 					this.argv[name] = await this.ask(createQuestion(opt, `Missing required option "${name}"`));
 				}
-			} else if (opt.values && !opt.values.includes(value)) {
+			} else if (values && !values.includes(value)) {
 				this.argv[name] = await this.ask(createQuestion(opt, `Invalid ${name} value "${value}"`));
-			} else if (typeof opt.validate === 'function') {
+			} else if (typeof orig.validate === 'function') {
 				this.argv[name] = await new Promise((resolve, reject) => {
-					opt.validate(value, async (err, adjustedValue) => {
+					orig.validate(value, async (err, adjustedValue) => {
 						if (err) {
 							this.logger.trace(`Validation failed for option ${name}: ${err.toString()}`);
 							try {

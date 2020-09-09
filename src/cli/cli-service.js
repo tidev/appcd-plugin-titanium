@@ -50,6 +50,7 @@ export default class CLIService extends Dispatcher {
 		// it's available to the command callback
 		cli.on('parse', ({ data }) => {
 			data.config = cfg.titanium;
+			data.pluginVersion = pluginVersion;
 		});
 
 		// we need to add platform specific options for the build/run help, so first we listen for

@@ -7,14 +7,14 @@ export default {
 
 	render(console, info) {
 		const filesize = require('filesize');
-		const { bold, magenta } = require('chalk');
+		const { cyan, magenta } = require('chalk');
 
-		console.log(bold('Operating System'));
-		console.log(`  Name                  = ${magenta(info.name)}`);
-		console.log(`  Version               = ${magenta(info.version)}`);
-		console.log(`  Architecture          = ${magenta(info.arch === 'x64' ? '64-bit' : '32-bit')}`);
-		console.log(`  # CPUs                = ${magenta(info.numcpus)}`);
-		console.log(`  Memory                = ${magenta(filesize(info.memory))}`);
+		console.log(magenta('Operating System'.toUpperCase()));
+		console.log(`  Name                  = ${cyan(info.name)}`);
+		console.log(`  Version               = ${cyan(info.version)}`);
+		console.log(`  Architecture          = ${cyan(info.arch === 'x64' ? '64-bit' : '32-bit')}`);
+		console.log(`  # CPUs                = ${cyan(info.numcpus)}`);
+		console.log(`  Memory                = ${cyan(filesize(info.memory))}`);
 		console.log();
 	}
 };

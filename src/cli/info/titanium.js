@@ -13,21 +13,21 @@ export default {
 		};
 	},
 	render(console, info) {
-		const { bold, cyan, gray, magenta } = require('chalk');
+		const { cyan, gray, green, magenta } = require('chalk');
 
-		console.log(bold('Titanium CLI'));
-		console.log(`  CLI Version           = ${magenta(info.cli.version)}`);
-		console.log(`  Plugin Version        = ${magenta(info.plugin.version)}`);
+		console.log(magenta('Titanium CLI'.toUpperCase()));
+		console.log(`  CLI Version           = ${cyan(info.cli.version)}`);
+		console.log(`  Plugin Version        = ${cyan(info.plugin.version)}`);
 		console.log();
 
-		console.log(bold('Titanium SDK'));
+		console.log(magenta('Titanium SDKs'.toUpperCase()));
 		if (info.sdks.length) {
 			for (const sdk of info.sdks) {
-				console.log(`  ${cyan(sdk.name)}`);
-				console.log(`    Version             = ${magenta(sdk.manifest.version)}`);
-				console.log(`    Install Location    = ${magenta(sdk.path)}`);
-				console.log(`    Platforms           = ${magenta(sdk.manifest.platforms.sort().join(', '))}`);
-				console.log(`    git Hash            = ${magenta(sdk.manifest.githash || 'unknown')}`);
+				console.log(`  ${green(sdk.name)}`);
+				console.log(`    Version             = ${cyan(sdk.manifest.version)}`);
+				console.log(`    Install Location    = ${cyan(sdk.path)}`);
+				console.log(`    Platforms           = ${cyan(sdk.manifest.platforms.sort().join(', '))}`);
+				console.log(`    git Hash            = ${cyan(sdk.manifest.githash || 'unknown')}`);
 			}
 		} else {
 			console.log(gray('  None'));
