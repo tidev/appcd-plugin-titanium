@@ -1,9 +1,19 @@
+import fs from 'fs-extra';
+import got from 'got';
 import isPlatformGuid from '@titanium-sdk/node-is-platform-guid';
 import path from 'path';
+import stream from 'stream';
+import tar from 'tar';
+import tunnel from '../tunnel';
 
-exports.init = (logger, config, cli, appc) => {
-	cli.on('build.pre.compile', ({ deployType, platformName, tiapp }) => {
-		if (!tiapp.modules.find(m => m.id === 'com.appcelerator.aca')) {
+import { isDir } from 'appcd-fs';
+import { promisify } from 'util';
+
+exports.init = (logger, config, cli) => {
+	const pipeline = promisify(stream.pipeline);
+
+	cli.on('build.pre.compile', async ({ deployType, platformName, tiapp }) => {
+		if (!tiapp.modules.find(m => m.id === 'com.appcelerator.aca' && (!m.platform || m.platform === platformName || m.platform === 'ios'))) {
 			return;
 		}
 
@@ -12,144 +22,71 @@ exports.init = (logger, config, cli, appc) => {
 		}
 
 		if (/^ios|iphone$/.test(platformName) && deployType !== 'development') {
+			logger.info('Authentication required, getting account...');
+			const account = await tunnel.getAccount();
+			if (!account) {
+				throw new Error('You must be authenticated to use Crash Analytics');
+			}
+
 			// we only need to upload the symbols for iOS apps
 			cli.on('build.post.compile', {
-				post: uploadSymbols,
+				post: builder => uploadSymbols(builder, account),
 				priority: 10000
 			});
 		}
 	});
 
-	function uploadSymbols(builder) {
-		const productsDir = path.join(builder.buildDir, 'build', 'Products');
-		const symbolsPath = `${builder.xcodeAppDir}.dSYM`;
+	async function uploadSymbols({ iosBuildDir, platformName, tiapp }, account) {
+		const symbolsPath = path.join(iosBuildDir, `${tiapp.name}.app.dSYM`);
+		const symbolsTarFile = `${symbolsPath}.tar.gz`;
 
-		//
-	}
-
-	/*
-	fs.readdirSync(productsDir).forEach(function (name) {
-		var subdir = path.join(productsDir, name);
-		if (fs.statSync(subdir).isDirectory()) {
-			fs.readdirSync(subdir).forEach(function (name) {
-				var file = path.join(subdir, name);
-				if (/\.dSYM$/.test(name) && fs.statSync(file).isDirectory()) {
-					symbolsPath = file;
-					logger.info('symbols: ' + symbolsPath);
-				}
-			});
-		}
-	});
-
-	var symbolsTar = symbolsPath + '.tar.gz';
-	if (!fs.existsSync(symbolsPath)) {
-		logger.error('could not find debug symbols');
-		return cb();
-	}
-
-	logger.trace('requesting crash report upload url');
-	aps.createRequest(session, '/api/v1/app/' + tiapp.guid + '/upload', function (err, result) {
-		if (err) {
-			logger.error(err);
-			return cb();
+		if (!isDir(symbolsPath)) {
+			logger.error('Could not find iOS debug symbols, skipping Crash Analytics');
+			return;
 		}
 
-		logger.trace('compressing debug symbols...');
-		const tarOpt = {
-			file: symbolsTar,
+		const { api_token, limit, url } = (await tunnel.call('/amplify/1.x/ti/aca-upload-url', {
+			data: {
+				accountName: account.name,
+				appGuid: tiapp.guid
+			}
+		})).response;
+
+		logger.info('Compressing debug symbols...');
+		await tar.create({
 			cwd: path.dirname(symbolsPath),
-			portable: true,
-			gzip: { level: 9 }
-		};
+			file: symbolsTarFile,
+			gzip: { level: 9 },
+			portable: true
+		}, [ path.basename(symbolsPath) ]);
 
-		tar.create(tarOpt, [ path.basename(symbolsPath) ], function (err) {
-			if (err) {
-				logger.error(err);
-				return cb();
-			}
+		const stat = await fs.stat(symbolsTarFile);
+		if (limit && stat.size > limit) {
+			logger.error('Symbol size exceeded max upload limit, skipping Crash Analytics');
+			return;
+		}
 
-			logger.trace('uploading compressed debug symbols...');
-			logger.trace('uploading ' + result.url);
-
-			if (result.module === 'aca') {
-				var stat = fs.statSync(symbolsTar);
-				logger.trace('symbol size: ' + stat.size);
-				logger.trace('max upload limit: ' + result.limit);
-
-				if (stat.size && result.limit && stat.size > result.limit) {
-					logger.error('Symbol size exceeded limit, the symbol file upload did not succeed.');
-					return cb();
-				}
-
-				var props = '?'
-					+ '&version=' + tiapp.version
-					+ '&platform=' + platformName
-					+ '&app=' + tiapp.guid;
-
-				var reqOptions = {
-					url: result.url + props,
-					headers: {
-						'Content-Length': stat.size,
-						'X-Auth-Token': result.api_token
-					}
-				};
-
-				// dummy request to retrieve the redirect endpoint
-				request.put(reqOptions, function (err, resp, body) {
-					if (err) {
-						logger.error(err);
-						return cb();
-					}
-
-					if (resp && resp.statusCode !== 302) {
-						logger.error(body);
-						return cb();
-					}
-
-					var redirect_headers = {
-						url: resp.headers.location,
-						headers: {
-							'Content-Length': stat.size
-						}
-					};
-
-					// actual upload of the file to the destination, found in the headers
-					var req = request.put(redirect_headers, function (err, resp, body) {
-						if (err) {
-							logger.error(err);
-							return cb();
-						}
-
-						if (resp && resp.statusCode !== 200) {
-							logger.error(body);
-							return cb();
-						}
-
-						logger.trace('Uploaded compressed debug symbols!');
-						return cb();
-					});
-
-					fs.createReadStream(symbolsTar).pipe(req);
-				});
-			} else {
-				var req = request.post(result.url, function (err, resp, body) {
-					if (err) {
-						logger.error(err);
-						return cb();
-					}
-					if (resp && resp.statusCode !== 200) {
-						logger.error(body);
-						return cb();
-					}
-					logger.trace('Uploaded compressed debug symbols!');
-					return cb();
-				});
-
-				var form = req.form();
-				form.append('key', result.api_token);
-				form.append('dsym', fs.createReadStream(symbolsTar));
-			}
+		const { headers, statusCode } = await got(`${url}?app=${tiapp.guid}&platform=${platformName}&version=${tiapp.version}`, {
+			followRedirect: false,
+			headers: { 'X-Auth-Token': api_token },
+			retry: 0
 		});
-	});
-	*/
+
+		if (!headers.location || statusCode !== 302) {
+			logger.error('Failed to upload debug symbols, couldn\'t resolve upload destination');
+			return;
+		}
+
+		logger.info('Uploading debug symbols...');
+		await pipeline(
+			fs.createReadStream(symbolsTarFile),
+			await got.stream.put(headers.location, {
+				headers: {
+					'Content-Length': stat.size
+				}
+			})
+		);
+
+		logger.info('Symbols uploaded successfully');
+	}
 };

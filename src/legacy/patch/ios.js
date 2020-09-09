@@ -362,6 +362,8 @@ function processCerts(info, results) {
 				};
 			}
 			keychains[cert.keychain][type].push(cert);
+			cert.pem = cert.cert;
+			delete cert.cert;
 		}
 	}
 
@@ -407,7 +409,17 @@ function processCerts(info, results) {
 }
 
 function processProvisioning(info, results) {
-	results.provisioning = info.provisioning;
+	results.provisioning = {};
+	for (const [ type, profiles ] of Object.entries(info.provisioning)) {
+		results.provisioning[type] = profiles.map(p => {
+			p.appId        = (p.entitlements['application-identifier'] || '').replace(/^\w+\./, '');
+			p.appPrefix    = p.teamId;
+			p.certs        = Object.values(p.certs);
+			p.getTaskAllow = !!p.entitlements['get-task-allow'];
+			p.team         = p.teamIds;
+			return p;
+		});
+	}
 
 	const valid = {
 		development: 0,

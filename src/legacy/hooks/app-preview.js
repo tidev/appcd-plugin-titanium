@@ -15,7 +15,7 @@ import { expandPath } from 'appcd-path';
 
 const endpoint = 'https://appbeta.axway.com';
 
-exports.init = async (logger, config, cli, appc) => {
+exports.init = async (logger, config, cli) => {
 	cli.on('build.config', data => {
 		data.result[1].appPreview = [
 			'App Preview Options',

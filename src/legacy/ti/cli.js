@@ -673,7 +673,7 @@ export default class CLI {
 			return a.orig.order ? -1 : b.orig.order ? 1 : 0;
 		});
 
-		const createQuestion = (opt, error) => {
+		const createQuestion = async (opt, error) => {
 			if (opt.values) {
 				return {
 					choices: opt.values.map(value => ({ value })),
@@ -685,7 +685,7 @@ export default class CLI {
 			}
 
 			if (typeof opt.orig?.prompt === 'function') {
-				// TODO!!!
+				return await new Promise(opt.orig.prompt);
 			}
 
 			return {
@@ -706,17 +706,20 @@ export default class CLI {
 				// sometimes required options such as `--device-id` allow an undefined value in the
 				// case when the value is derived by the config or is autoselected
 				if (orig.required && (typeof orig.verifyIfRequired !== 'function' || await new Promise(orig.verifyIfRequired))) {
-					this.argv[name] = await this.ask(createQuestion(opt, `Missing required option "${name}"`));
+					const question = await createQuestion(opt, `Missing required option "${name}"`);
+					this.argv[name] = question.type === 'select' && question.choices.length === 1 ? question.choices[0].value : (await this.ask(question));
 				}
 			} else if (values && !values.includes(value)) {
-				this.argv[name] = await this.ask(createQuestion(opt, `Invalid ${name} value "${value}"`));
+				const question = await createQuestion(opt, `Invalid ${name} value "${value}"`);
+				this.argv[name] = question.type === 'select' && question.choices.length === 1 ? question.choices[0].value : (await this.ask(question));
 			} else if (typeof orig.validate === 'function') {
 				this.argv[name] = await new Promise((resolve, reject) => {
 					orig.validate(value, async (err, adjustedValue) => {
 						if (err) {
 							this.logger.trace(`Validation failed for option ${name}: ${err.toString()}`);
 							try {
-								adjustedValue = await this.ask(createQuestion(opt, `Invalid ${name} value "${value}"`));
+								const question = await createQuestion(opt, `Invalid ${name} value "${value}"`);
+								adjustedValue = question.type === 'select' && question.choices.length === 1 ? question.choices[0].value : (await this.ask(question));
 							} catch (e) {
 								return reject(e);
 							}

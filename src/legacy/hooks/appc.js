@@ -6,7 +6,7 @@ import tunnel from '../tunnel';
 import { expandPath } from 'appcd-path';
 import { sha1 } from 'appcd-util';
 
-exports.init = (logger, config, cli, appc) => {
+exports.init = (logger, config, cli) => {
 	const homeDir = expandPath(config.get('home'));
 	let account;
 	let isRegistered = false;
@@ -209,7 +209,7 @@ exports.init = (logger, config, cli, appc) => {
 			await tunnel.call('/amplify/1.x/ti/app/set', {
 				data: {
 					accountName: account.name,
-					tiapp: await fs.readFile(path.join(projectDir, 'tiapp.xml', 'utf-8'))
+					tiapp: await fs.readFile(path.join(projectDir, 'tiapp.xml'), 'utf-8')
 				}
 			});
 
