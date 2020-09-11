@@ -1,3 +1,9 @@
+/**
+ * Constructs a shim for the `fields` package that translates prompt settings into `enquirer`
+ * format.
+ *
+ * @returns {Object}
+ */
 export function patch() {
 	return {
 		setup() {},
