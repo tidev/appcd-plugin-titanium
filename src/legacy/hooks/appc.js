@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import fs from 'fs-extra';
-import path from 'path';
 import isPlatformGuid from '@titanium-sdk/node-is-platform-guid';
+import path from 'path';
+import plist from 'simple-plist';
 import security from 'appc-security';
 import tunnel from '../tunnel';
 import zlib from 'zlib';
@@ -11,11 +12,21 @@ import { expandPath } from 'appcd-path';
 import { promisify } from 'util';
 import { sha1 } from 'appcd-util';
 
+/**
+ * Wires up hooks for platform integration.
+ *
+ * @param {Object} logger - The Titanium CLI logger.
+ * @param {Object} config - The Titanium CLI config object.
+ * @param {CLI} cli - The Titanium CLI instance.
+ */
 exports.init = (logger, config, cli) => {
 	const gzip = promisify(zlib.gzip);
 	const homeDir = expandPath(config.get('home'));
 	let account;
 
+	/**
+	 * Hook into the build pre-construct event to validate the encryption policy.
+	 */
 	cli.on('build.pre.construct', builder => {
 		switch (builder.tiapp.properties?.['appc-sourcecode-encryption-policy']?.value) {
 			case 'embed':
@@ -27,6 +38,10 @@ exports.init = (logger, config, cli) => {
 		}
 	});
 
+	/**
+	 * Hook into the build pre-compile event to enforce entitlements, wire up encryption, and
+	 * perform build verification.
+	 */
 	cli.on('build.pre.compile', {
 		async post(builder) {
 			const { deployType, platformName, projectDir, tiapp } = builder;
@@ -88,17 +103,15 @@ exports.init = (logger, config, cli) => {
 				const buildData = await verifyBuild({
 					account,
 					deployType,
-					modules:     builder.modules,
+					modules: builder.modules,
 					projectDir,
 					tiapp
 				});
 
-				let applicationJava;
-
 				// step 2.4: check to see if we need to force a rebuild
 				if (platformName === 'android') {
 					try {
-						applicationJava = path.join(builder.buildGenAppIdDir, `${builder.classname}Application.java`);
+						const applicationJava = path.join(builder.buildGenAppIdDir, `${builder.classname}Application.java`);
 						builder.forceRebuild = !(await fs.readFile(applicationJava, 'utf-8')).includes('new AssetCryptImpl');
 					} catch (e) {
 						builder.forceRebuild = true;
@@ -123,308 +136,234 @@ exports.init = (logger, config, cli) => {
 					// note: this must be done post-compile after the builder's initialize() is called
 					builder.whitelistAppceleratorDotCom = true;
 
-					tiprep.pre = function (data) {
-						const orig = data.fn;
-						data.fn = async function (...args) {
-							const callback = args[args.length - 1];
-							try {
-								const assetDir = platformName === 'android' ? this.buildBinAssetsDir : this.xcodeAppDir;
-								const outputDir = path.join(assetDir, sha1(tiapp.guid));
-								const keys = {};
-								const shasum = crypto.createHash('sha1');
-
-								await fs.mkdirs(outputDir);
-
-								await Promise.all(this.jsFilesToEncrypt.map(async filename => {
-									const from = path.join(assetDir, filename);
-									const to = path.join(outputDir, sha1(filename));
-
-									// unmark the encrypted file for deletion
-									if (this.buildDirFiles) {
-										delete this.buildDirFiles[to];
-									}
-
-									logger.trace(`Encrypting ${from} => ${to}`);
-									const unencrypted = await fs.readFile(from, 'utf-8');
-									const encrypted = security.encrypt(unencrypted, buildData.key, buildData.pepper, buildData.hmacKey, 'base64', 128);
-
-									// store our key by filename path
-									keys[filename] = encrypted.derivedKey.toString('hex');
-
-									// gzip the buffer contents
-									const compressed = await gzip(encrypted.value);
-									logger.trace(`Compressed ${to} ${encrypted.value.length} => ${compressed.length} bytes`);
-									shasum.update(sha1(compressed));
-									await fs.writeFile(to, compressed);
-									await fs.remove(from);
-								}));
-
-								const shaofshas = shasum.digest('hex');
-								logger.debug(`sha of shas ${shaofshas}`);
-
-								try {
-									await tunnel.call('/amplify/1.x/ti/build-update', {
-										data: {
-											buildId: buildData.i,
-											buildSHA: shaofshas,
-											keys
-										}
-									});
-								} catch (err) {
-									// possibly offline?
-									logger.warn(`Failed to update build metadata: ${err.toString()}`);
-									orig.apply(builder, args);
-									return;
-								}
-
-								await copyFiles(builder, {
-									buildId: buildData.i,
-									buildSHA: shaofshas,
-									keys
-								});
-
-								if (platformName === 'android') {
-									// Titanium SDK 9 switched to Gradle and no longer manually invokes aapt, javac, and the dexer, so for older
-									const legacy = version.lt(this.titaniumSdkVersion, '9.0.0');
-
-									if (legacy) {
-										cli.on('build.android.dexer', data => {
-											data.args[1].push(path.join(this.buildDir, 'libs', 'appcelerator-security.jar'));
-											data.args[1].push(path.join(this.buildDir, 'libs', 'appcelerator-verify.jar'));
-										});
-									}
-
-									cli.on('build.android.javac', data => {
-										// write Application.java file
-										const contents = fs.readFileSync(applicationJava, 'utf-8');
-										if (contents.includes('new AssetCryptImpl')) {
-											fs.writeFileSync(
-												applicationJava,
-												contents
-													.replace(/KrollAssetHelper\.setAssetCrypt[^;]+?;/, 'KrollAssetHelper.setAssetCrypt(new com.appcelerator.verify.AssetCryptImpl(this, appInfo));')
-													.replace(/(public void verifyCustomModules)/g, [
-														'public void setCurrentActivity(android.app.Activity callingActivity, android.app.Activity activity)',
-														'	{',
-														'		com.appcelerator.verify.AssetCryptImpl.setActivity(activity);',
-														'		super.setCurrentActivity(callingActivity, activity);',
-														'	}',
-														'',
-														'	@Override',
-														'$1'
-													].join('\n'))
-											);
-										}
-
-										if (legacy) {
-											// patch javac args
-											const classpathIdx = data.args.indexOf('-bootclasspath') + 1;
-											for (const jar of [ 'appcelerator-security.jar', 'appcelerator-verify.jar' ]) {
-												const src = path.join(__dirname, '..', '..', '..', 'support', 'android', jar);
-												const dest = path.join(this.buildDir, 'libs', jar);
-												data.args[classpathIdx] += `${path.delimiter}${dest}`;
-												fs.copyFileSync(src, dest);
-											}
-										}
-									});
-								}
-
-								callback();
-							} catch (err) {
-								callback(err);
-							}
-						};
-					};
+					// override the default titanium prep mutator with the remote encryption logic
+					tiprep.pre = createRemoteHook(buildData);
 				}
 
 			} else if (policy === 'remote') {
 				throw new Error('Remote encryption policy is only available to registered apps');
 			}
 
+			// step 3: wire up the titanium prep hook
 			cli.on('build.android.titaniumprep', tiprep);
 			cli.on('build.ios.titaniumprep', tiprep);
 		},
 		priority: 0
 	});
 
-	async function copyFiles(builder, keys) {
-		const { buildDir, platformName, target } = builder;
+	/**
+	 * Creates the titanium prep hook that handles remote encryption.
+	 *
+	 * @param {Object} buildData - The build verify response.
+	 * @returns {Function} The function hook.
+	 */
+	function createRemoteHook(buildData) {
+		return function (data) {
+			const orig = data.fn;
+			data.fn = async function (...args) {
+				const callback = args[args.length - 1];
+				try {
+					// step 1: create a lot of variables
+					const forge = require('node-forge');
+					const { buildDir, platformName, tiapp } = this;
+					const isSimBuild = this.target === 'simulator' || this.target === 'emulator';
+					const debuggerDetect = tiapp.properties['appc-security-debugger-detect'] !== false;
+					const jailBreakDetect = !isSimBuild && tiapp.properties['appc-security-jailbreak-detect'];
+					const assetDir = platformName === 'android' ? this.buildBinAssetsDir : this.xcodeAppDir;
+					const outputDir = path.join(assetDir, sha1(tiapp.guid));
+					const keys = {};
+					const shasum = crypto.createHash('sha1');
+					const privateKey = forge.pki.privateKeyFromPem(await fs.readFile(path.join(homeDir, `.${sha1(`${account.name}${account.org.id}`)}.pk`)));
+					const md = forge.md.sha256.create();
+					const signature = privateKey.sign(md.update(buildData.i, 'utf8'));
+					const signatureBase64 = Buffer.from(forge.util.bytesToHex(signature), 'hex').toString('base64');
+					const signatureShaBase64 = Buffer.from(forge.util.bytesToHex(md.digest().bytes()), 'hex').toString('base64');
+					const appVerifyURL = await tunnel.call('/amplify/1.x/ti/app-verify-url');
 
-		if (platformName === 'iphone') {
-			const src = await fs.readFile(path.join(__dirname, '..', '..', '..', 'support', 'ios', 'ApplicationRouting.m'), 'utf-8');
-			const dest = await fs.readFile(path.join(buildDir, 'Classes', 'ApplicationRouting.m'), 'utf-8');
-			if (src !== dest) {
-				const stat = await fs.stat(src);
-				await fs.copy(src, dest);
-				await fs.utimes(dest, stat.atime, stat.mtime);
-			}
-		}
+					// step 2: encrypt the source files and write them into the
+					await fs.mkdirs(outputDir);
+					await Promise.all(this.jsFilesToEncrypt.map(async filename => {
+						const from = path.join(assetDir, filename);
+						const to = path.join(outputDir, sha1(filename));
 
-		const isSimBuild = target === 'simulator' || target === 'emulator';
+						// unmark the encrypted file for deletion
+						if (this.buildDirFiles) {
+							delete this.buildDirFiles[to];
+						}
 
-		/*
+						logger.trace(`Encrypting ${from} => ${to}`);
+						const unencrypted = await fs.readFile(from, 'utf-8');
+						const encrypted = security.encrypt(unencrypted, buildData.key, buildData.pepper, buildData.hmacKey, 'base64', 128);
 
-		// encode some necessary strings for storage in the app
-		var appStore = builder.platformName === 'android' ? {} : new appc.plist();
-		appStore.plan = Buffer.from(config.appc.p).toString('base64');
-		appStore.uid = Buffer.from(config.appc.u).toString('base64');
-		appStore.oid = Buffer.from(String(config.appc.o)).toString('base64');
-		appStore.username = Buffer.from(config.appc.username).toString('base64');
-		if (!config.appc.offline && config.appc.shaofshas) {
-			// this is not set when offline
-			appStore.sha = Buffer.from(config.appc.shaofshas).toString('base64');
-		}
-		// get the sourcecode encryption policy
-		var policy = builder.tiapp.properties['appc-sourcecode-encryption-policy'];
-		policy = (policy && policy.value) || 'remote';
-		// the current policy is embed (embed the encryption key/iv into the binary)
-		// otherwise, use the network (which is the most secure)
-		var keyEmbed = (policy === 'embed');
-		// encode policy for storage in the app
-		appStore.policy = Buffer.from(policy).toString('base64');
-		// by default, we do jailbreak and debugger detection. but allow dev to configure
-		var jailBreakDetect = builder.target !== 'emulator' && readBooleanFromProps(builder, 'appc-security-jailbreak-detect', false);
-		var debuggerDetect = readBooleanFromProps(builder, 'appc-security-debugger-detect', true);
+						// store our key by filename path
+						keys[filename] = encrypted.derivedKey.toString('hex');
 
-		logger.trace(util.format('encryption policy = %s, jailbreak detect = %d, debugger detect = %d', policy, jailBreakDetect, debuggerDetect));
+						// gzip the buffer contents
+						const compressed = await gzip(encrypted.value);
+						logger.trace(`Compressed ${to} ${encrypted.value.length} => ${compressed.length} bytes`);
+						shasum.update(sha1(compressed));
+						await fs.writeFile(to, compressed);
+						await fs.remove(from);
+					}));
 
-		if (builder.platformName === 'iphone') {
-			// we are going to copy over the tiverify with our own implementation
-			var sourceFn = path.join(__dirname, '..', 'support', 'ios', 'libappcverify.a');
-			var targetFn = path.join(builder.buildDir, 'lib', 'libtiverify.a');
-			if (fs.existsSync(targetFn) && fs.lstatSync(targetFn).isSymbolicLink()) {
-				fs.unlinkSync(targetFn);
-				fs.symlinkSync(sourceFn, targetFn);
-			} else {
-				var buf = fs.readFileSync(sourceFn);
-				fs.writeFileSync(targetFn, buf);
-			}
-		}
-		if (keyEmbed) {
-			// in the key embed policy we are going to generate a key for validation offline
-			var seed = Math.round(Math.random() * 5) + 1;
-			var key = generateSeed(seed);
-			var buildKey = Buffer.from(key).toString('base64');
-			var unencrypted = JSON.stringify(json.keys);
-			var encryptedObject = security.encrypt(unencrypted, buildKey, config.appc.result.pepper, config.appc.result.hmacKey, 'base64', 128);
-			appStore.embedBlob = Buffer.from(encryptedObject.value).toString('base64');
-			appStore.embedKey = Buffer.from(encryptedObject.derivedKey).toString('hex');
-		}
+					const shaofshas = shasum.digest('hex');
+					logger.debug(`sha of shas ${shaofshas}`);
 
-		// read in our private key and use that to sign the i and we'll use that to send to server
-		var privateKey = pki.privateKeyFromPem(fs.readFileSync(config.appc.privateKey));
-		var md = forge.md.sha256.create();
-		md.update(config.appc.i, 'utf8');
-		var signature = privateKey.sign(md);
-		var hex = forge.util.bytesToHex(signature);
-		var buffer = Buffer.from(hex, 'hex');
-		var signatureBase64 = buffer.toString('base64');
-		hex = forge.util.bytesToHex(md.digest().bytes());
-		buffer = Buffer.from(hex, 'hex');
-		var signatureShaBase64 = buffer.toString('base64');
-
-		// we only write main if we're not running on simulator
-		if (builder.platformName === 'iphone' && !isSimBuild) {
-			logger.trace('not a simulator build, generating a new main.m');
-
-			// write into the main our url for validation
-			let targetFn = path.join(builder.buildDir, 'main.m');
-			let buf = fs.readFileSync(targetFn).toString();
-
-			// if we are re-writing the same file contents, filter out existing lines so we can
-			// re-write them below and not step on each other
-			if (buf.indexOf('TI_APPLICATION_APPC') > 0) {
-				buf = buf.split('\n').filter(function (line) {
-					return line.indexOf('TI_APPLICATION_APPC') === -1
-						&& line.indexOf('inserted by appc build') === -1;
-				}).join('\n');
-			}
-			var index = buf.indexOf('int main(int argc, char *argv[])');
-			if (index > 0) {
-				var before = buf.substring(0, index);
-				var after = buf.substring(index);
-				buf = before + '\n\n'
-					+ '// inserted by appc build\n';
-				buf += '#define TI_APPLICATION_APPC_DBG_CHECK           vv9800980890v\n';
-				buf += '#define TI_APPLICATION_APPC_JBK_CHECK           c899089089\n';
-				buf += '#define TI_APPLICATION_APPC_VERIFY_PEPPER       gggfk332944990\n';
-				buf += '#define TI_APPLICATION_APPC_VERIFY_HMAC         ddkssg33jjg4jh\n';
-				buf += 'const bool TI_APPLICATION_APPC_DBG_CHECK = ' + debuggerDetect + ';\n';
-				buf += 'const bool TI_APPLICATION_APPC_JBK_CHECK = ' + jailBreakDetect + ';\n';
-				if (keyEmbed) {
-					buf += 'NSString * const TI_APPLICATION_APPC_VERIFY_PEPPER = @"' + config.appc.pepper + '";\n';
-					buf += 'NSString * const TI_APPLICATION_APPC_VERIFY_HMAC = @"' + config.appc.hmacKey + '";\n';
-				} else {
-					// define anyway to avoid missing architecture symbols in remote case
-					buf += 'NSString * const TI_APPLICATION_APPC_VERIFY_PEPPER = nil;\n';
-					buf += 'NSString * const TI_APPLICATION_APPC_VERIFY_HMAC = nil;\n';
-				}
-				buf += '\n' + after;
-				// write it out
-				fs.writeFileSync(targetFn, buf);
-			} else {
-				return finished(new Error('couldn\'t find correct main entry point'));
-			}
-		} else if (builder.platformName === 'android') {
-			appStore.debuggerDetect = Buffer.from(String(debuggerDetect)).toString('base64');
-			appStore.jailBreakDetect = Buffer.from(String(jailBreakDetect)).toString('base64');
-		}
-
-		var url = builder.config.appc.url + '/' + encodeURIComponent(builder.config.appc.i) + '/' + encodeURIComponent(signatureBase64) + '/' + encodeURIComponent(signatureShaBase64);
-		appStore.build = Buffer.from(String(Date.now())).toString('base64');
-		appStore.url = Buffer.from(url).toString('base64');
-
-		var shafn = crypto.createHash('sha1');
-		shafn.update(builder.tiapp.id);
-		var encryptInto = builder.xcodeAppDir || builder.buildBinAssetsDir;
-		var filename = path.join(encryptInto, shafn.digest('hex'));
-
-		var appStoreString;
-		if (builder.platformName === 'iphone') {
-			appStoreString = appStore.toXml().toString();
-			logger.trace(util.format('generated app string store:\n%j', appStoreString));
-		} else if (builder.platformName === 'android') {
-			appStoreString = Buffer.from(JSON.stringify(appStore)).toString('base64');
-			logger.trace('generated app string store: {');
-			for (let key in appStore) {
-				if (Object.prototype.hasOwnProperty.call(appStore, key)) {
-					logger.trace('\t' + key + ': ' + (Buffer.from(appStore[key], 'base64').toString('utf-8')));
-				}
-			}
-			logger.trace('}');
-		} else {
-			throw new Error(builder.platformName + ' does not know how to handle writing out the encoded app string store');
-		}
-
-		// unmark the encrypted file for deletion
-		if (builder.buildDirFiles) {
-			delete builder.buildDirFiles[filename];
-		}
-
-		fs.writeFileSync(filename, appStoreString);
-		// TODO: We should also send a sha of the app store values to the server so we can ensure that isn't tampered with.
-
-		if (builder.platformName === 'iphone') {
-			if (!isSimBuild) {
-				// turn the XML file into binary plist if we're not running on simulator for dev
-				logger.trace(util.format('running plist XML to binary conversion %s', filename));
-				return appc.subprocess.run('plutil', [ '-convert', 'binary1', filename ], {}, function (err, stdout, stderr) {
-					if (err) {
-						return finished(new Error('error encoding XML plist to binary.' + err + '.' + stderr));
+					// step 3: notify the platform with encryption info
+					try {
+						await tunnel.call('/amplify/1.x/ti/build-update', {
+							data: {
+								buildId: buildData.i,
+								buildSHA: shaofshas,
+								keys
+							}
+						});
+					} catch (err) {
+						// possibly offline?
+						logger.warn(`Failed to update build metadata: ${err.toString()}`);
+						return orig.apply(this, args);
 					}
-					finished();
-				});
-			} else {
-				logger.trace(util.format('skipping plist XML to binary conversion %s', filename));
-				finished();
-			}
-		} else {
-			logger.trace('encryption support files copied successfully');
-			finished();
-		}
-		*/
+
+					// step 4: copy over iOS specific files
+					if (platformName === 'iphone') {
+						let src = await fs.readFile(path.join(__dirname, '..', '..', '..', 'support', 'ios', 'ApplicationRouting.m'), 'utf-8');
+						let dest = await fs.readFile(path.join(buildDir, 'Classes', 'ApplicationRouting.m'), 'utf-8');
+						if (src !== dest) {
+							const stat = await fs.stat(src);
+							await fs.copy(src, dest);
+							await fs.utimes(dest, stat.atime, stat.mtime);
+						}
+
+						// we are going to copy over the tiverify with our own implementation
+						src = path.join(__dirname, '..', '..', '..', 'support', 'ios', 'libappcverify.a');
+						dest = path.join(buildDir, 'lib', 'libtiverify.a');
+						try {
+							if (!fs.lstatSync(dest).isSymbolicLink()) {
+								throw new Error();
+							}
+							await fs.unlink(dest);
+							await fs.symlink(src, dest);
+						} catch (err) {
+							await fs.copy(src, dest);
+						}
+
+						if (!isSimBuild) {
+							// we only write main if we're not running on simulator
+							const mainFile = path.join(buildDir, 'main.m');
+							let main = await fs.readFile(mainFile, 'utf-8');
+
+							// if we are re-writing the same file contents, filter out existing lines so we can
+							// re-write them below and not step on each other
+							main = main.split('\n')
+								.filter(line => !line.includes('TI_APPLICATION_APPC'))
+								.join('\n');
+
+							const idx = main.indexOf('int main(');
+							if (idx === -1) {
+								throw new Error('Couldn\'t find main entry point in main.m');
+							}
+
+							await fs.writeFile(`${main.substring(0, idx)}
+#define TI_APPLICATION_APPC_DBG_CHECK vv9800980890v
+#define TI_APPLICATION_APPC_JBK_CHECK c899089089
+#define TI_APPLICATION_APPC_VERIFY_PEPPER gggfk332944990
+#define TI_APPLICATION_APPC_VERIFY_HMAC ddkssg33jjg4jh
+const bool TI_APPLICATION_APPC_DBG_CHECK = ${debuggerDetect};
+const bool TI_APPLICATION_APPC_JBK_CHECK = ${jailBreakDetect};
+NSString* const TI_APPLICATION_APPC_VERIFY_PEPPER = nil;
+NSString* const TI_APPLICATION_APPC_VERIFY_HMAC = nil;
+${main.substring(idx)}`, 'utf-8');
+						}
+					}
+
+					// step 5: prepare and write store
+					const store = {
+						build:   Date.now(),
+						debuggerDetect,
+						jailBreakDetect,
+						policy: 'remote',
+						sha:    shaofshas,
+						url:    `${appVerifyURL}/${encodeURIComponent(buildData.i)}/${encodeURIComponent(signatureBase64)}/${encodeURIComponent(signatureShaBase64)}`
+					};
+					logger.trace('Store data:', store);
+					for (const key of Object.keys(store)) {
+						store[key] = Buffer.from(String(store[key])).toString('base64');
+					}
+					const storeData = platformName === 'android'
+						? Buffer.from(JSON.stringify(store)).toString('base64')
+						: isSimBuild
+							? plist.stringify(store)
+							: plist.bplistCreator(store);
+					const storeFile = path.join(assetDir, sha1(tiapp.id));
+					await fs.writeFile(storeFile, storeData);
+
+					// TODO: send the storeSha to platform
+					// const storeSha = sha1(store);
+
+					// unmark the encrypted file for deletion
+					if (this.buildDirFiles) {
+						delete this.buildDirFiles[storeFile];
+					}
+
+					// step 6: wire up Android specific hooks to generate the Application.java file and wire up the legacy jar files
+					if (platformName === 'android') {
+						// Titanium SDK 9 switched to Gradle and no longer manually invokes aapt, javac, and the dexer, so for older
+						const legacy = version.lt(this.titaniumSdkVersion, '9.0.0');
+
+						if (legacy) {
+							cli.on('build.android.dexer', data => {
+								data.args[1].push(path.join(buildDir, 'libs', 'appcelerator-security.jar'));
+								data.args[1].push(path.join(buildDir, 'libs', 'appcelerator-verify.jar'));
+							});
+						}
+
+						cli.on('build.android.javac', async data => {
+							// write Application.java file
+							const applicationJava = path.join(this.buildGenAppIdDir, `${this.classname}Application.java`);
+							let contents = await fs.readFile(applicationJava, 'utf-8');
+							if (contents.includes('new AssetCryptImpl')) {
+								contents = contents
+									.replace(/KrollAssetHelper\.setAssetCrypt[^;]+?;/, 'KrollAssetHelper.setAssetCrypt(new com.appcelerator.verify.AssetCryptImpl(this, appInfo));')
+									.replace(/(public void verifyCustomModules)/g, `\
+public void setCurrentActivity(android.app.Activity callingActivity, android.app.Activity activity)
+{
+com.appcelerator.verify.AssetCryptImpl.setActivity(activity);
+super.setCurrentActivity(callingActivity, activity);
+}
+
+@Override
+$1`);
+								await fs.writeFile(applicationJava, contents, 'utf-8');
+							}
+
+							if (legacy) {
+								// patch javac args
+								const classpathIdx = data.args.indexOf('-bootclasspath') + 1;
+								for (const jar of [ 'appcelerator-security.jar', 'appcelerator-verify.jar' ]) {
+									const src = path.join(__dirname, '..', '..', '..', 'support', 'android', jar);
+									const dest = path.join(buildDir, 'libs', jar);
+									data.args[classpathIdx] += `${path.delimiter}${dest}`;
+									await fs.copyFile(src, dest);
+								}
+							}
+						});
+					}
+
+					callback();
+				} catch (err) {
+					callback(err);
+				}
+			};
+		};
 	}
 
-	async function generateDevCert({ account }) {
+	/**
+	 * Generates the developer key pair and writes it in the home directory.
+	 *
+	 * @param {Object} account - The authenticated account info.
+	 * @returns {Promise}
+	 */
+	async function generateDevCert(account) {
 		logger.info('Generating developer certificate and private/public keys');
 
 		const filename = path.join(homeDir, `.${sha1(`${account.name}${account.org.id}`)}`);
@@ -453,6 +392,17 @@ exports.init = (logger, config, cli) => {
 		}
 	}
 
+	/**
+	 * Verifies the build and retrieves the build id and developer identification info.
+	 *
+	 * @param {Object} params - Various parameters.
+	 * @param {Object} params.account - The authenticated account info.
+	 * @param {String} params.deployType - The build deploy type.
+	 * @param {Array.<Object>} params.modules - A list of module descriptors that based on the
+	 * `tiapp.xml` that are compatible with the current platform being built for.
+	 * @param {Object} params.tiapp - An object containing the values from the `tiapp.xml`.
+	 * @returns {Promise}
+	 */
 	async function verifyBuild({ account, deployType, modules, projectDir, tiapp }) {
 		const buildFile = path.join(homeDir, 'builds', `${sha1([
 			account.name,
@@ -490,7 +440,7 @@ exports.init = (logger, config, cli) => {
 					// this is ok, just means the app isn't registered with the platform yet
 				} else if (/^com\.appcelerator\.platform\.developercertificate\.(notfound|invalid)$/.test(err.code)) {
 					logger.warn('Developer certs need to be regenerated');
-					await generateDevCert({ account });
+					await generateDevCert(account);
 
 					try {
 						// try again

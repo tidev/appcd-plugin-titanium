@@ -20,6 +20,7 @@
  * feat(legacy): Legacy Titanium CLI bootstrap for loading a Titanium SDK and running a `build` or
    `clean` command. For differences between this and Titanium CLI v5, see the
    [readme](https://github.com/appcelerator/appcd-plugin-titanium/blob/master/src/legacy/README.md).
+ * feat(legacy): Added support for remote encryption.
  * feat(cli:sdk): Added aliases to sdk commands (i, ls, rm).
  * feat(sdk): Added `find` endpoint to SDK service to get info about an installed Titanium SDK.
  * feat(sdk): Added progress bars during SDK installation.
