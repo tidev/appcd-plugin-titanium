@@ -82,3 +82,8 @@ been mocked to be a noop.
 When an Android app is being built, it needs to query the Android development environment. This
 functionality is now performed by the `android` appcd plugin which does not validate the Java/JDK
 and thus will not report any issues with Java being misconfigured.
+
+#### PAC Proxy Support
+
+The Titanium CLI v5 does not support PAC proxies, but the Appcelerator CLI did. This feature was
+dropped.
