@@ -89,7 +89,7 @@ exports.init = (logger, config, cli) => {
 				cli.on('build.post.compile', {
 					priority: 10000,
 					async post() {
-						await tunnel.call('/amplify/1.x/ti/app/set', {
+						await tunnel.call('/amplify/2.x/ti/app/set', {
 							data: {
 								accountName: account.name,
 								tiapp: await fs.readFile(path.join(projectDir, 'tiapp.xml'), 'utf-8')
@@ -178,7 +178,7 @@ exports.init = (logger, config, cli) => {
 					const signature = privateKey.sign(md.update(buildData.i, 'utf8'));
 					const signatureBase64 = Buffer.from(forge.util.bytesToHex(signature), 'hex').toString('base64');
 					const signatureShaBase64 = Buffer.from(forge.util.bytesToHex(md.digest().bytes()), 'hex').toString('base64');
-					const appVerifyURL = await tunnel.call('/amplify/1.x/ti/app-verify-url');
+					const appVerifyURL = await tunnel.call('/amplify/2.x/ti/app-verify-url');
 
 					// step 2: encrypt the source files and write them into the
 					await fs.mkdirs(outputDir);
@@ -211,7 +211,7 @@ exports.init = (logger, config, cli) => {
 
 					// step 3: notify the platform with encryption info
 					try {
-						await tunnel.call('/amplify/1.x/ti/build-update', {
+						await tunnel.call('/amplify/2.x/ti/build-update', {
 							data: {
 								buildId: buildData.i,
 								buildSHA: shaofshas,
@@ -374,7 +374,7 @@ $1`);
 		const publicKey = pki.publicKeyToPem(keys.publicKey);
 
 		logger.info('Registering developer certificate');
-		const certificate = await tunnel.call('/amplify/1.x/ti/enroll', {
+		const certificate = await tunnel.call('/amplify/2.x/ti/enroll', {
 			data: {
 				accountName: account.name,
 				fingerprint: cli.fingerprint,
@@ -434,7 +434,7 @@ $1`);
 
 		const verify = async data => {
 			try {
-				return await tunnel.call('/amplify/1.x/ti/build-verify', { data });
+				return await tunnel.call('/amplify/2.x/ti/build-verify', { data });
 			} catch (err) {
 				if (err.code === 'com.appcelerator.platform.app.notregistered') {
 					// this is ok, just means the app isn't registered with the platform yet
@@ -444,7 +444,7 @@ $1`);
 
 					try {
 						// try again
-						return await tunnel.call('/amplify/1.x/ti/build-verify', { data });
+						return await tunnel.call('/amplify/2.x/ti/build-verify', { data });
 					} catch (err2) {
 						if (err2.code !== 'com.appcelerator.platform.app.notregistered') {
 							throw err2;

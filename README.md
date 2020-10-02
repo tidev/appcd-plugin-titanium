@@ -2,6 +2,9 @@
 
 Titanium SDK services for the Appc Daemon.
 
+> This plugin requires appcd plugin API version 2.x which was introduced in appcd@4.0.0 and the
+> AMPLIFY appcd plugin v2.x.
+
 ## Services
 
  * [SDKs](#SDKs)

@@ -15,13 +15,10 @@ export default class ProjectService extends Dispatcher {
 	/**
 	 * Registers all of the endpoints.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
-		this.config = cfg;
-
+	async activate() {
 		const runLegacyCLI = async (command, ctx) => {
 			const { cwd } = ctx.request.data;
 			const argv = { ...ctx.request.data };
@@ -29,7 +26,7 @@ export default class ProjectService extends Dispatcher {
 			await exec({
 				argv,
 				command,
-				config:  cfg.titanium,
+				config:  appcd.config.get('titanium'),
 				console: new Console(ctx.response, ctx.response),
 				cwd
 			});
@@ -60,7 +57,7 @@ export default class ProjectService extends Dispatcher {
 		// TODO: in the future, run will call project.build and we'll "run" it ourselves
 		this.register('/run', ctx => runLegacyCLI('run', ctx));
 
-		await this.templateSvc.activate(cfg);
+		await this.templateSvc.activate();
 		this.register('/templates', this.templateSvc);
 	}
 

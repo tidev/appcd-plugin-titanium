@@ -4,7 +4,7 @@ import sortObject from 'sort-object-keys';
 
 import { compare } from '../lib/version';
 import { DataServiceDispatcher } from 'appcd-dispatcher';
-import { debounce, get } from 'appcd-util';
+import { debounce } from 'appcd-util';
 import { modules, options } from 'titaniumlib';
 
 /**
@@ -14,11 +14,10 @@ export default class ModuleListService extends DataServiceDispatcher {
 	/**
 	 * Starts detecting Titanium SDKs and modules.
 	 *
-	 * @param {Object} cfg - An Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
+	async activate() {
 		this.data = gawk({
 			android:  {},
 			commonjs: {},
@@ -26,7 +25,7 @@ export default class ModuleListService extends DataServiceDispatcher {
 			windows:  {}
 		});
 
-		options.module.searchPaths = get(cfg, 'titanium.module.searchPaths');
+		options.module.searchPaths = appcd.config.get('titanium.module.searchPaths');
 
 		this.detectEngine = new DetectEngine({
 			checkDir(dir) {
@@ -77,7 +76,7 @@ export default class ModuleListService extends DataServiceDispatcher {
 			gawk.set(this.data, modules);
 		});
 
-		gawk.watch(cfg, [ 'titanium', 'module', 'searchPaths' ], debounce(value => {
+		appcd.config.watch('titanium.module.searchPaths', debounce(value => {
 			options.module.searchPaths = value;
 			this.detectEngine.paths = modules.getPaths();
 		}));

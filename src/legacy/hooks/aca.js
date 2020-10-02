@@ -1,11 +1,9 @@
 import fs from 'fs-extra';
-import got from 'got';
 import isPlatformGuid from '@titanium-sdk/node-is-platform-guid';
 import path from 'path';
 import stream from 'stream';
 import tar from 'tar';
 import tunnel from '../tunnel';
-
 import { isDir } from 'appcd-fs';
 import { promisify } from 'util';
 
@@ -45,7 +43,7 @@ exports.init = (logger, config, cli) => {
 			return;
 		}
 
-		const { api_token, limit, url } = (await tunnel.call('/amplify/1.x/ti/aca-upload-url', {
+		const { api_token, limit, url } = (await tunnel.call('/amplify/2.x/ti/aca-upload-url', {
 			data: {
 				accountName: account.name,
 				appGuid: tiapp.guid
@@ -66,7 +64,7 @@ exports.init = (logger, config, cli) => {
 			return;
 		}
 
-		const { headers, statusCode } = await got(`${url}?app=${tiapp.guid}&platform=${platformName}&version=${tiapp.version}`, {
+		const { headers, statusCode } = await cli.got(`${url}?app=${tiapp.guid}&platform=${platformName}&version=${tiapp.version}`, {
 			followRedirect: false,
 			headers: { 'X-Auth-Token': api_token },
 			retry: 0
@@ -80,7 +78,7 @@ exports.init = (logger, config, cli) => {
 		logger.info('Uploading debug symbols...');
 		await pipeline(
 			fs.createReadStream(symbolsTarFile),
-			await got.stream.put(headers.location, {
+			await cli.got.stream.put(headers.location, {
 				headers: {
 					'Content-Length': stat.size
 				}

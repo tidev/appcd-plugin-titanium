@@ -66,6 +66,7 @@ export async function exec({ argv, command, config, console, cwd, prompt }) {
 		config:           config || {},
 		cwd:              projectDir,
 		fingerprint:      (await appcd.call('/appcd/status/system/mid')).response,
+		network:          appcd.config.get('network'),
 		promptingEnabled: !!prompt,
 		sdkPath:          sdkInfo.path,
 		type:             'exec'

@@ -11,7 +11,7 @@ export default {
 		'--json': 'Outputs revoked accounts as JSON'
 	},
 	async action({ argv, console }) {
-		const { response: revoked } = await appcd.call('/amplify/1.x/auth/logout', {
+		const { response: revoked } = await appcd.call('/amplify/2.x/auth/logout', {
 			data: {
 				accountName: argv.account
 			}

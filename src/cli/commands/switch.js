@@ -10,7 +10,7 @@ export default {
 	},
 	async action(params) {
 		const { argv, console, terminal } = params;
-		const { response: accounts } = await appcd.call('/amplify/1.x/auth');
+		const { response: accounts } = await appcd.call('/amplify/2.x/auth');
 		let account;
 		let { org } = argv;
 		let loggedIn = false;
@@ -36,7 +36,7 @@ export default {
 		previousOrg = account?.org.guid;
 
 		if (account.orgs.length === 1) {
-			account = await appcd.call('/amplify/1.x/switch', {
+			account = await appcd.call('/amplify/2.x/switch', {
 				accountName: account.name,
 				org: account.orgs[0].guid
 			});
@@ -69,7 +69,7 @@ export default {
 				console.log();
 			}
 
-			account = (await appcd.call('/amplify/1.x/auth/switch', {
+			account = (await appcd.call('/amplify/2.x/auth/switch', {
 				data: {
 					accountName: account.name,
 					org

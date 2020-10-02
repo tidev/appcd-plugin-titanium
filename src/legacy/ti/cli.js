@@ -7,7 +7,7 @@ import Module from 'module';
 import path from 'path';
 import tunnel from '../tunnel';
 import * as version from '../../lib/version';
-
+import * as request from '@axway/amplify-request';
 import { CLI_VERSION } from './version';
 import { expandPath } from 'appcd-path';
 import { format } from 'util';
@@ -122,6 +122,8 @@ export default class CLI {
 	 * @param {String} opts.command - The name of the command to execute.
 	 * @param {Object} [opts.config] - User-defined Titanium CLI config settings from appcd's user
 	 * config.
+	 * @param {Object} [opts.network] - Network configuration settings including `caFile`,
+	 * `certFile`, `keyFile`, `proxy`, and `strictSSL`.
 	 * @param {Boolean} [opts.promptingEnabled] - When `true`, invalid and missing values will be
 	 * prompted for.
 	 * @param {String} opts.sdkPath - The path to the Titanium SDK.
@@ -136,6 +138,8 @@ export default class CLI {
 		this.fingerprint      = opts.fingerprint;
 		this.promptingEnabled = !!opts.promptingEnabled;
 		this.sdk              = new sdk.TitaniumSDK(opts.sdkPath);
+
+		this.got = request.init({ defaults: opts.network });
 
 		// initialize the CLI argument values
 		this.argv = {

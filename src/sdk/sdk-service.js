@@ -1,6 +1,5 @@
 import Dispatcher, { DispatcherError } from 'appcd-dispatcher';
 import SDKListService from './sdk-list-service';
-
 import { AppcdError, codes } from 'appcd-response';
 import { expandPath } from 'appcd-path';
 import { sdk } from 'titaniumlib';
@@ -12,15 +11,12 @@ export default class SDKService extends Dispatcher {
 	/**
 	 * Registers all of the endpoints and initializes the installed SDKs detect engine.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
-		this.config = cfg;
-
+	async activate() {
 		this.installed = new SDKListService();
-		await this.installed.activate(cfg);
+		await this.installed.activate();
 
 		this.register('/', (ctx, next) => {
 			ctx.path = '/list';
@@ -75,9 +71,10 @@ export default class SDKService extends Dispatcher {
 	 */
 	install({ request, response }) {
 		const { data, params } = request;
+		const tiHome = appcd.config.get('titanium.home');
 
 		sdk.install({
-			downloadDir: this.config.titanium.home && expandPath(this.config.titanium.home, 'downloads'),
+			downloadDir: tiHome && expandPath(tiHome, 'downloads'),
 			keep:        data.keep,
 			onProgress(evt) {
 				if (data.progress) {

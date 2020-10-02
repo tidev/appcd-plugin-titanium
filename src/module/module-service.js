@@ -3,8 +3,8 @@ import ModuleListService from './module-list-service';
 
 import { AppcdError } from 'appcd-response';
 import { expandPath } from 'appcd-path';
-import { get, unique } from 'appcd-util';
 import { modules } from 'titaniumlib';
+import { unique } from 'appcd-util';
 
 const { log } = appcd.logger('module-service');
 const { highlight } = appcd.logger.styles;
@@ -16,15 +16,12 @@ export default class ModuleService extends Dispatcher {
 	/**
 	 * Registers all of the endpoints and initializes the installed modules detect engine.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
-		this.config = cfg;
-
+	async activate() {
 		this.installed = new ModuleListService();
-		await this.installed.activate(cfg);
+		await this.installed.activate();
 
 		this.register('/', (ctx, next) => {
 			ctx.path = '/list';
@@ -37,7 +34,7 @@ export default class ModuleService extends Dispatcher {
 
 		const check = async () => {
 			try {
-				const { response: accounts } = await appcd.call('/amplify/1.x/auth');
+				const { response: accounts } = await appcd.call('/amplify/2.x/auth');
 				const account = accounts.find(a => a.active) || accounts[0];
 				await this.checkDownloads(account?.name);
 				log('Successfully checked downloads, checking again in 1 hour');
@@ -69,7 +66,7 @@ export default class ModuleService extends Dispatcher {
 			throw err;
 		}
 
-		const { response: downloads } = await appcd.call('/amplify/1.x/ti/downloads', {
+		const { response: downloads } = await appcd.call('/amplify/2.x/ti/downloads', {
 			data: {
 				accountName
 			}
@@ -90,8 +87,9 @@ export default class ModuleService extends Dispatcher {
 						log(`${highlight(`${id}@${version}`)} (${platform}) already installed`);
 					} else {
 						log(`Installing ${highlight(`${id}@${version}`)} (${platform})...`);
+						const tiHome = appcd.config.get('titanium.home');
 						result.push.apply(result, await modules.install({
-							downloadDir: this.config.titanium.home && expandPath(this.config.titanium.home, 'downloads'),
+							downloadDir: tiHome && expandPath(tiHome, 'downloads'),
 							uri: url
 						}));
 						break;
@@ -126,7 +124,7 @@ export default class ModuleService extends Dispatcher {
 	 */
 	getInstallPaths() {
 		const paths = modules.locations[process.platform].map(p => expandPath(p));
-		const defaultPath = get(this.config, 'titanium.modules.defaultInstallLocation');
+		const defaultPath = appcd.config.get('titanium.modules.defaultInstallLocation');
 		if (defaultPath) {
 			paths.unshift(expandPath(defaultPath));
 		}
@@ -145,9 +143,10 @@ export default class ModuleService extends Dispatcher {
 	 */
 	install({ request, response }) {
 		const { data } = request;
+		const tiHome = appcd.config.get('titanium.home');
 
 		modules.install({
-			downloadDir: this.config.titanium.home && expandPath(this.config.titanium.home, 'downloads'),
+			downloadDir: tiHome && expandPath(tiHome, 'downloads'),
 			keep:        data.keep,
 			onProgress(evt) {
 				if (data.progress) {

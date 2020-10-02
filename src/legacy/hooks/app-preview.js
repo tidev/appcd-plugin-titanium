@@ -7,7 +7,6 @@
 
 import FormData from 'form-data';
 import fs from 'fs';
-import got from 'got';
 import open from 'open';
 import tmp from 'tmp';
 import tunnel from '../tunnel';
@@ -79,7 +78,7 @@ exports.init = async (logger, config, cli) => {
 
 		const post = async (url, body) => {
 			try {
-				return (await got(url, {
+				return (await cli.got(url, {
 					body,
 					headers: {
 						Accept: 'application/json',

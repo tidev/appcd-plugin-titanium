@@ -62,11 +62,11 @@ class Tunnel extends EventEmitter {
 	 */
 	async getAccount() {
 		if (!this._account) {
-			const { response: accounts } = await this.call('/amplify/1.x/auth');
+			const { response: accounts } = await this.call('/amplify/2.x/auth');
 			this._account = accounts.find(a => a.active) || accounts[0];
 		}
 		if (!this._account) {
-			this._account = (await this.call('/amplify/1.x/auth/login')).response;
+			this._account = (await this.call('/amplify/2.x/auth/login')).response;
 		}
 		return this._account;
 	}

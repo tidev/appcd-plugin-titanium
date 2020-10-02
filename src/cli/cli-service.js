@@ -4,7 +4,6 @@ import fs from 'fs';
 import getPort from 'get-port';
 import path from 'path';
 
-import { get } from 'appcd-util';
 import { isFile } from 'appcd-fs';
 import { loadOptions } from './run-legacy';
 import { parseVersion } from '../lib/util';
@@ -20,11 +19,10 @@ export default class CLIService extends Dispatcher {
 	/**
 	 * Registers all of the endpoints.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
+	async activate() {
 		const pluginVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'))).version;
 
 		const cli = new CLI({
@@ -49,7 +47,7 @@ export default class CLIService extends Dispatcher {
 		// inject the titanium config into the command data object before parsing starts so that
 		// it's available to the command callback
 		cli.on('parse', ({ data }) => {
-			data.config = cfg.titanium;
+			data.config = appcd.config.get('titanium');
 			data.pluginVersion = pluginVersion;
 		});
 
@@ -76,7 +74,7 @@ export default class CLIService extends Dispatcher {
 
 		// find an available port to listen on
 		const port = await getPort({
-			port: get(cfg, 'port', 1733)
+			port: appcd.config.get('port', 1733)
 		});
 
 		// start the cli-kit server

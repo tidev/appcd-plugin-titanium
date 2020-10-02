@@ -4,7 +4,7 @@ import semver from 'semver';
 
 import { compare } from '../lib/version';
 import { DataServiceDispatcher } from 'appcd-dispatcher';
-import { debounce, get } from 'appcd-util';
+import { debounce } from 'appcd-util';
 import { options, sdk } from 'titaniumlib';
 
 /**
@@ -14,14 +14,13 @@ export default class SDKListService extends DataServiceDispatcher {
 	/**
 	 * Starts detecting Titanium SDKs.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
+	async activate() {
 		this.data = gawk([]);
 
-		options.sdk.searchPaths = get(cfg, 'titanium.sdk.searchPaths');
+		options.sdk.searchPaths = appcd.config.get('titanium.sdk.searchPaths');
 
 		this.detectEngine = new DetectEngine({
 			checkDir(dir) {
@@ -50,7 +49,7 @@ export default class SDKListService extends DataServiceDispatcher {
 
 		this.detectEngine.on('results', results => gawk.set(this.data, results));
 
-		gawk.watch(cfg, [ 'titanium', 'sdk', 'searchPaths' ], debounce(value => {
+		appcd.config.watch('titanium.sdk.searchPaths', debounce(value => {
 			options.sdk.searchPaths = value;
 			this.detectEngine.paths = sdk.getPaths();
 		}));

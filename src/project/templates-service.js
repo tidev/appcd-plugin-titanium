@@ -3,7 +3,6 @@ import fs from 'fs-extra';
 import gawk from 'gawk';
 import globalModules from 'global-modules';
 import path from 'path';
-
 import { DataServiceDispatcher } from 'appcd-dispatcher';
 import { mergeDeep } from 'appcd-util';
 import { templates } from 'titaniumlib';
