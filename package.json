@@ -16,7 +16,7 @@
     "test": "gulp test"
   },
   "dependencies": {
-    "@axway/amplify-request": "^2.0.0",
+    "@axway/amplify-request": "^2.0.1",
     "@titanium-sdk/node-is-platform-guid": "^1.0.2",
     "appc-security": "^0.1.0",
     "appcd-fs": "^2.0.0",
