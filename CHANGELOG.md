@@ -32,6 +32,8 @@
  * feat: Support for Titanium-specific telemetry.
  * feat: Added HTTP proxy support.
  * feat: Adopted appcd 4.x new `appcd.config.*`.
+ * feat(cli): Added `register` command to replace old --import flag.
+ * feat(project): Added `/project/register` endpoint.
  * feat(amplify): Upgraded from AMPLIFY appcd plugin v1.x to v2.x.
  * refactor: Updated to latest cli-kit with support for the new client/server architecture.
  * refactor: Updated `config` command actions to be subcommands with improved help output.
