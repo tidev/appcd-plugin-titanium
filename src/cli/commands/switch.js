@@ -55,7 +55,7 @@ export default {
 							}
 							return {
 								name:    org.name,
-								message: `${org.name} (${org.guid} : ${org.id})`,
+								message: org.name,
 								value:   org.guid
 							};
 						})

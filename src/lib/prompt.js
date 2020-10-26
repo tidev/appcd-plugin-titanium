@@ -98,7 +98,7 @@ export async function promptLoop({ ctx, data, footer, header, ns, path, print })
 			}
 			return;
 		} catch (err) {
-			if (!err.prompt || !argv.prompt) {
+			if ((!(err instanceof PromptError) && !err.prompt) || !argv.prompt) {
 				throw err;
 			}
 
@@ -108,7 +108,7 @@ export async function promptLoop({ ctx, data, footer, header, ns, path, print })
 			}
 
 			// prompt and try again
-			let ask = err.prompt;
+			let ask = err instanceof PromptError ? err.ask : err.prompt;
 			let { name } = ask;
 			let result;
 			logger.warn(`${err.toString()}, prompting for ${highlight(`"${name}"`)}`);
