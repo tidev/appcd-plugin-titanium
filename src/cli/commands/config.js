@@ -1,5 +1,6 @@
 export default {
-	aliases: 'conf',
+	aliases: '!conf',
+	banner: false,
 	commands: {
 		'@ls, list': {
 			desc: 'Display all config settings',
@@ -45,7 +46,6 @@ async function runConfig(action, { argv, cmd, console, setExitCode }) {
 
 	const print = ({ code = 0, key = null, value }) => {
 		setExitCode(code);
-		cmd.banner = false;
 
 		if (json) {
 			console.log(JSON.stringify(value, null, 2));

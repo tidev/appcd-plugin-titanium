@@ -23,7 +23,7 @@
     "appcd-path": "^2.0.1",
     "appcd-util": "^3.0.0",
     "chalk": "^4.1.0",
-    "cli-kit": "^1.8.2",
+    "cli-kit": "^1.8.6",
     "colors": "^1.4.0",
     "dateformat": "^3.0.3",
     "enquirer": "^2.3.6",
@@ -35,7 +35,6 @@
     "get-port": "^5.1.1",
     "global-modules": "^2.0.0",
     "node-forge": "^0.10.0",
-    "node-pty-prebuilt-multiarch": "^0.9.0",
     "open": "^7.3.0",
     "pluralize": "^8.0.0",
     "progress": "^2.0.3",
@@ -45,7 +44,7 @@
     "tar": "^6.0.5",
     "titaniumlib": "^3.0.1",
     "tmp": "^0.2.1",
-    "v8-compile-cache": "^2.1.1",
+    "v8-compile-cache": "^2.2.0",
     "yauzl": "^2.10.0"
   },
   "devDependencies": {
