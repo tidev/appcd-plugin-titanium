@@ -41,7 +41,7 @@ export default {
 	}
 };
 
-async function runConfig(action, { argv, cmd, console, setExitCode }) {
+async function runConfig(action, { argv, console, setExitCode }) {
 	let { json, key, value } = argv;
 
 	const print = ({ code = 0, key = null, value }) => {
