@@ -8,7 +8,6 @@
  * BREAKING CHANGE(config): Write operations such as `set` return `"OK"` instead of `"Saved"`.
  * BREAKING CHANGE: Dropped support for appcd plugin API version 1.0 and require API version 2.0,
    which was initially introduced in `appcd@4.0.0`.
- * feat(info): Added `filter` argument to `ti info`.
  * feat(project): Project service with endpoints for `new`, `build`, `run`, `clean`, and info.
    [(DAEMON-26)](https://jira.appcelerator.org/browse/DAEMON-26)
    [(DAEMON-21)](https://jira.appcelerator.org/browse/DAEMON-21)
@@ -42,6 +41,12 @@
  * chore: Added plugin API version 2.x.
  * chore: Transpile for Node 10 instead of Node 8. Not a breaking change as appcd has always
    guaranteed Node 10 or newer.
+ * chore: Updated dependencies.
+
+# v1.8.2 (Jan 26, 2021)
+
+ * refactor: Updated to cli-kit@1.9.3 adding support for the new client/server architecture.
+ * feat(info): Added `filter` argument to `ti info`.
  * chore: Updated dependencies.
 
 # v1.8.1 (Jan 15, 2020)

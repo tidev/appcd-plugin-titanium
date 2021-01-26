@@ -1,6 +1,6 @@
 {
   "name": "@appcd/plugin-titanium",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Titanium SDK service for the Appc Daemon.",
   "main": "./dist/index",
   "author": "Appcelerator, Inc. <npmjs@appcelerator.com>",
