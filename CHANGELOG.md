@@ -1,6 +1,6 @@
-# v1.9.0
+# v1.8.2 (Jan 26, 2021)
 
- * refactor: Updated to cli-kit@0.14.0 adding support for the new client/server architecture.
+ * refactor: Updated to cli-kit@1.9.3 adding support for the new client/server architecture.
  * feat(info): Added `filter` argument to `ti info`.
  * chore: Updated dependencies.
 
