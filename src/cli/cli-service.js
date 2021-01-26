@@ -36,6 +36,7 @@ export default class CLIService extends Dispatcher {
 			options: {
 				'--no-prompt': 'Disable interactive prompting'
 			},
+			serverMode: true,
 			styles: {
 				subheading(s) {
 					return `\n${String(s).toUpperCase()}`;
