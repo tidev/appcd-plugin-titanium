@@ -126,6 +126,7 @@ export default {
 			}
 		}
 	},
+	aliases: [ 'ls' ],
 	desc: 'Print a list of installed SDK versions.',
 	options: {
 		'-b, --branches': 'Retreive and print all branches',

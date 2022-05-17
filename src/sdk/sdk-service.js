@@ -1,6 +1,5 @@
-import Dispatcher from 'appcd-dispatcher';
+import Dispatcher, { DispatcherError } from 'appcd-dispatcher';
 import SDKListService from './sdk-list-service';
-
 import { AppcdError, codes } from 'appcd-response';
 import { expandPath } from 'appcd-path';
 import { sdk } from 'titaniumlib';
@@ -12,20 +11,18 @@ export default class SDKService extends Dispatcher {
 	/**
 	 * Registers all of the endpoints and initializes the installed SDKs detect engine.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
-		this.config = cfg;
-
+	async activate() {
 		this.installed = new SDKListService();
-		await this.installed.activate(cfg);
+		await this.installed.activate();
 
 		this.register('/', (ctx, next) => {
 			ctx.path = '/list';
 			return next();
 		})
+			.register('/find/:name?',      ctx => this.find(ctx))
 			.register('/list',             this.installed)
 			.register('/branches',         () => sdk.getBranches())
 			.register('/builds/:branch?',  ctx => sdk.getBuilds(ctx.request.params.branch))
@@ -46,35 +43,57 @@ export default class SDKService extends Dispatcher {
 	}
 
 	/**
+	 * Scans installed Titanium SDKs to find an SDK by name.
+	 *
+	 * @param {Context} ctx - A request context.
+	 * @returns {Object}
+	 * @access private
+	 */
+	find(ctx) {
+		const { data, params } = ctx.request;
+		const name = data.name || params.name;
+		const result = this.installed.find(name);
+		if (result) {
+			return result;
+		}
+		throw new DispatcherError(`Titanium SDK ${name} not found`);
+	}
+
+	/**
 	 * Install SDK service handler.
+	 *
+	 * Note: This method does not return a promise because we want the response to be sent
+	 * immediately and receive install events as they occur. It relies on the response stream to
+	 * close.
 	 *
 	 * @param {Context} ctx - A request context.
 	 * @access private
 	 */
-	install(ctx) {
-		const { data, params } = ctx.request;
+	install({ request, response }) {
+		const { data, params } = request;
+		const tiHome = appcd.config.get('titanium.home');
 
 		sdk.install({
-			downloadDir: this.config.home && expandPath(this.config.home, 'downloads'),
+			downloadDir: tiHome && expandPath(tiHome, 'downloads'),
 			keep:        data.keep,
 			onProgress(evt) {
 				if (data.progress) {
-					ctx.response.write(evt);
+					response.write(evt);
 				}
 			},
 			overwrite:   data.overwrite,
 			uri:         data.uri || params.name
 		}).then(tisdk => {
-			ctx.response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
-			ctx.response.end();
-		}, err => {
+			response.write({ fin: true, message: `Titanium SDK ${tisdk.name} installed` });
+			response.end();
+		}).catch(err => {
 			try {
 				if (err.code === 'ENOTFOUND') {
-					ctx.response.write(new AppcdError(codes.NOT_FOUND, err.message));
+					response.write(new DispatcherError(err.message));
 				} else {
-					ctx.response.write(new AppcdError(err));
+					response.write(new AppcdError(err));
 				}
-				ctx.response.end();
+				response.end();
 			} catch (e) {
 				// stream is probably closed
 			}
@@ -99,7 +118,7 @@ export default class SDKService extends Dispatcher {
 		try {
 			return await sdk.uninstall(uri);
 		} catch (err) {
-			throw err.code === 'ENOTFOUND' ? new AppcdError(codes.NOT_FOUND, err) : err;
+			throw err.code === 'ENOTFOUND' ? new DispatcherError(err) : err;
 		}
 	}
 }

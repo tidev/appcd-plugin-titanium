@@ -1,3 +1,48 @@
+# v2.0.0
+
+ * BREAKING CHANGE(config): `config` command no longer returns status as apart of JSON output.
+ * BREAKING CHANGE(config): `config` command does not return current value when doing a `set`,
+   `push`, or `unshift`.
+ * BREAKING CHANGE(config): `config list` command no longer supports filtering, use `config get`
+   instead.
+ * BREAKING CHANGE(config): Write operations such as `set` return `"OK"` instead of `"Saved"`.
+ * BREAKING CHANGE: Dropped support for appcd plugin API version 1.0 and require API version 2.0,
+   which was initially introduced in `appcd@4.0.0`.
+ * feat(project): Project service with endpoints for `new`, `build`, `run`, `clean`, and info.
+   [(DAEMON-26)](https://jira.appcelerator.org/browse/DAEMON-26)
+   [(DAEMON-21)](https://jira.appcelerator.org/browse/DAEMON-21)
+ * feat(cli): Added `new` command. [(DAEMON-301)](https://jira.appcelerator.org/browse/DAEMON-301)
+ * feat(cli): Added `clean` command.
+   [(DAEMON-327)](https://jira.appcelerator.org/browse/DAEMON-327)
+ * feat(cli): Added `build` and `run` commands.
+   [(DAEMON-16)](https://jira.appcelerator.org/browse/DAEMON-16)
+ * feat(cli): Added auth commands `login`, `logout`, `whoami`, and `switch`.
+   [(DAEMON-300)](https://jira.appcelerator.org/browse/DAEMON-300)
+ * feat(legacy): Legacy Titanium CLI bootstrap for loading a Titanium SDK and running a `build` or
+   `clean` command. For differences between this and Titanium CLI v5, see the
+   [readme](https://github.com/appcelerator/appcd-plugin-titanium/blob/master/src/legacy/README.md).
+ * feat(legacy): Added support for remote encryption.
+ * feat(cli:sdk): Added aliases to sdk commands (i, ls, rm).
+ * feat(sdk): Added `find` endpoint to SDK service to get info about an installed Titanium SDK.
+ * feat(sdk): Added progress bars during SDK installation.
+ * feat(module): Added `/module/check-downloads` endpoint.
+ * feat(module): Added `/module/install` endpoint.
+ * feat(module): Added automatic checking of new Titanium module downloads.
+ * feat: Support for Titanium-specific telemetry.
+ * feat: Added HTTP proxy support.
+ * feat: Adopted appcd 4.x new `appcd.config.*`.
+ * feat(cli): Added `register` command to replace old --import flag.
+ * feat(project): Added `/project/register` endpoint.
+ * feat(amplify): Upgraded from AMPLIFY appcd plugin v1.x to v2.x.
+ * refactor: Updated to latest cli-kit with support for the new client/server architecture.
+ * refactor: Updated `config` command actions to be subcommands with improved help output.
+ * fix(legacy): Improved logging of uncaught exceptions and rejections.
+ * chore: Removed `source-map-support` as `appcd-plugin` already hooks it up.
+ * chore: Added plugin API version 2.x.
+ * chore: Transpile for Node 10 instead of Node 8. Not a breaking change as appcd has always
+   guaranteed Node 10 or newer.
+ * chore: Updated dependencies.
+
 # v1.8.2 (Jan 26, 2021)
 
  * refactor: Updated to cli-kit@1.9.3 adding support for the new client/server architecture.

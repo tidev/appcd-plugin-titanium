@@ -3,14 +3,14 @@ export default {
 		return (await appcd.call('/jdk/1.x/info')).response;
 	},
 	render(console, info) {
-		const { bold, cyan, gray, magenta } = require('chalk');
+		const { cyan, gray, green, magenta } = require('chalk');
 
-		console.log(bold('Java Development Kit'));
+		console.log(magenta('Java Development Kit'.toUpperCase()));
 		if (info.length) {
 			for (const jdk of info) {
-				console.log(`  ${cyan(`${jdk.version}:${jdk.build}`)}${jdk.default ? gray(' (default)') : ''}`);
-				console.log(`    Architecture        = ${magenta(jdk.arch)}`);
-				console.log(`    Path                = ${magenta(jdk.path)}`);
+				console.log(`  ${green(`${jdk.version}:${jdk.build}`)}${jdk.default ? gray(' (default)') : ''}`);
+				console.log(`    Architecture        = ${cyan(jdk.arch)}`);
+				console.log(`    Path                = ${cyan(jdk.path)}`);
 			}
 		} else {
 			console.log(gray('  Not installed'));

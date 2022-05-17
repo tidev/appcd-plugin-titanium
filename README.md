@@ -2,7 +2,10 @@
 
 Titanium SDK services for the Appc Daemon.
 
-## Services
+> This plugin requires appcd plugin API version 2.x which was introduced in appcd@4.0.0 and the
+> AMPLIFY appcd plugin v2.x.
+
+## Service Endpoints
 
  * [SDKs](#SDKs)
    - [`/sdk/list/installed`](#sdklistinstalled)
@@ -129,6 +132,24 @@ $ appcd exec /titanium/latest/sdk/list/releases
     <snip>
   }
 }
+```
+
+### `/sdk/find/:name?`
+
+Returns information about the specified installed SDK.
+
+#### CLI Usage
+
+```sh
+$ appcd exec /titanium/latest/sdk/find
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/find/latest
+```
+
+```sh
+$ appcd exec /titanium/latest/sdk/find/9.0.0.GA
 ```
 
 ### `/sdk/list/branches`

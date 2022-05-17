@@ -4,7 +4,7 @@ export default {
 		'--json': 'Outputs accounts as JSON'
 	},
 	async action({ argv, console }) {
-		let { response: accounts } = await appcd.call('/amplify/1.x/auth');
+		const { response: accounts } = await appcd.call('/amplify/2.x/auth');
 
 		if (!accounts.length) {
 			console.log('No authenticated accounts.');
@@ -16,7 +16,7 @@ export default {
 		if (argv.json) {
 			console.log(JSON.stringify(account, null, 2));
 		} else {
-			const { highlight } = require('appcd-logger').snooplogg.styles;
+			const { highlight } = appcd.logger.styles;
 			console.log(`You are logged into ${highlight(account.org.name)} as ${highlight(account.user.email || account.name)}.`);
 		}
 	}

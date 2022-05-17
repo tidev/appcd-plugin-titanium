@@ -1,73 +1,55 @@
-const readActions = {
-	get:     'get',
-	ls:      'get',
-	list:    'get'
-};
-
-const writeActions = {
-	set:     'set',
-
-	delete:  'delete',
-	rm:      'delete',
-	unset:   'delete',
-
-	push:    'push',
-	pop:     'pop',
-	shift:   'shift',
-	unshift: 'unshift'
-};
-
 export default {
-	aliases: 'conf',
-	args: [
-		{
-			name: '<action>',
-			desc: 'The action to run',
-			values: {
-				'ls, list':   'Display all settings',
-				get:          'Display a specific setting',
-				set:          'Change a setting',
-				'rm, delete': 'Remove a setting',
-				push:         'Add a value to the end of a list',
-				pop:          'Remove the last value in a list'
-			}
+	aliases: '!conf',
+	banner: false,
+	commands: {
+		'@ls, list': {
+			desc: 'Display all config settings',
+			action: ctx => runConfig('get', ctx)
 		},
-		{ name: 'key', desc: '' },
-		{ name: 'value', desc: '' }
-	],
+		'get [key]': {
+			desc: 'Display a specific config setting',
+			action: ctx => runConfig('get', ctx)
+		},
+		'set <key> <value>': {
+			desc: 'Change a config setting',
+			action: ctx => runConfig('set', ctx)
+		},
+		'@rm, delete, !remove, !unset <key>': {
+			desc: 'Remove a config setting',
+			action: ctx => runConfig('delete', ctx)
+		},
+		'push <key> <value>': {
+			desc: 'Add a value to the end of a list',
+			action: ctx => runConfig('push', ctx)
+		},
+		'pop <key>': {
+			desc: 'Remove the last value in a list',
+			action: ctx => runConfig('pop', ctx)
+		},
+		'shift <key>': {
+			desc: 'Remove the first value in a list',
+			action: ctx => runConfig('shift', ctx)
+		},
+		'unshift <key> <value>': {
+			desc: 'Add a value ot the beginning of a list',
+			action: ctx => runConfig('unshift', ctx)
+		}
+	},
 	desc: 'Manage configuration options',
 	options: {
 		'--json': 'Outputs the config as JSON'
-	},
-	async action({ argv, console }) {
-		let { action, key, value } = argv;
+	}
+};
 
-		if (!readActions[action] && !writeActions[action]) {
-			throw new Error(`Unknown action: ${action}`);
-		}
+async function runConfig(action, { argv, console, setExitCode }) {
+	let { json, key, value } = argv;
 
-		let { response } = await appcd.call('/appcd/config', {
-			data: {
-				action: readActions[action] || writeActions[action] || action,
-				key: /^titanium\./.test(key) ? key : key ? `titanium.${key}` : 'titanium',
-				value
-			}
-		});
+	const print = ({ code = 0, key = null, value }) => {
+		setExitCode(code);
 
-		let result = 'Saved';
-		if (response !== 'OK') {
-			result = response;
-		} else if (argv.json) {
-			// if a pop() or shift() returns OK, then that means there's no more items and
-			// thus we have to force undefined
-			if (/^pop|shift$/.test(action)) {
-				result = '';
-			}
-		}
-
-		if (argv.json) {
-			console.log(JSON.stringify({ code: 0, result }, null, 2));
-		} else if (result && typeof result === 'object') {
+		if (json) {
+			console.log(JSON.stringify(value, null, 2));
+		} else if (value && typeof value === 'object') {
 			let width = 0;
 			const rows = [];
 
@@ -90,7 +72,7 @@ export default {
 					}
 					segments.pop();
 				}
-			}(result, key ? key.split('.') : []));
+			}(value, key ? key.split('.') : []));
 
 			if (rows.length) {
 				for (const row of rows) {
@@ -100,7 +82,25 @@ export default {
 				console.log('No config settings found');
 			}
 		} else {
-			console.log(result);
+			console.log(value);
 		}
+	};
+
+	try {
+		const { response } = await appcd.call('/appcd/config', {
+			data: {
+				action,
+				key: /^titanium\./.test(key) ? key : key ? `titanium.${key}` : 'titanium',
+				value
+			}
+		});
+
+		print({ key, value: response });
+	} catch (err) {
+		if (err.status === 404) {
+			return print({ code: 6, key });
+		}
+		err.json = json;
+		throw err;
 	}
-};
+}

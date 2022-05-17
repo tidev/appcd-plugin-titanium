@@ -1,5 +1,5 @@
 export default {
-	aliases: [ 'revoke' ],
+	aliases: '!revoke',
 	args: [
 		{
 			name: 'account',
@@ -11,7 +11,7 @@ export default {
 		'--json': 'Outputs revoked accounts as JSON'
 	},
 	async action({ argv, console }) {
-		const { response: revoked } = await appcd.call('/amplify/1.x/auth/logout', {
+		const { response: revoked } = await appcd.call('/amplify/2.x/auth/logout', {
 			data: {
 				accountName: argv.account
 			}
@@ -24,7 +24,7 @@ export default {
 
 		// pretty output
 		if (revoked.length) {
-			const { highlight } = require('appcd-logger').snooplogg.styles;
+			const { highlight } = appcd.logger.styles;
 			console.log('Revoked authenticated accounts:');
 			for (const account of revoked) {
 				console.log(` ${highlight(account.name)}`);

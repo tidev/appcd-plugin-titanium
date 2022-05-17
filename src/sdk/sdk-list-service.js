@@ -1,9 +1,10 @@
 import DetectEngine from 'appcd-detect';
 import gawk from 'gawk';
+import semver from 'semver';
 
 import { compare } from '../lib/version';
 import { DataServiceDispatcher } from 'appcd-dispatcher';
-import { debounce, get } from 'appcd-util';
+import { debounce } from 'appcd-util';
 import { options, sdk } from 'titaniumlib';
 
 /**
@@ -13,14 +14,13 @@ export default class SDKListService extends DataServiceDispatcher {
 	/**
 	 * Starts detecting Titanium SDKs.
 	 *
-	 * @param {Object} cfg - The Appc Daemon config object.
 	 * @returns {Promise}
 	 * @access public
 	 */
-	async activate(cfg) {
+	async activate() {
 		this.data = gawk([]);
 
-		options.sdk.searchPaths = get(cfg, 'titanium.sdk.searchPaths');
+		options.sdk.searchPaths = appcd.config.get('titanium.sdk.searchPaths');
 
 		this.detectEngine = new DetectEngine({
 			checkDir(dir) {
@@ -36,10 +36,9 @@ export default class SDKListService extends DataServiceDispatcher {
 			paths:    sdk.getPaths(),
 			processResults(results) {
 				results.sort((a, b) => {
-					return compare(
-						a.manifest && a.manifest.version,
-						b.manifest && b.manifest.version
-					);
+					const av = a.manifest?.version;
+					const bv = b.manifest?.version;
+					return av && bv ? compare(av, bv) : 0;
 				});
 			},
 			recursive:           true,
@@ -50,7 +49,7 @@ export default class SDKListService extends DataServiceDispatcher {
 
 		this.detectEngine.on('results', results => gawk.set(this.data, results));
 
-		gawk.watch(cfg, [ 'titanium', 'sdk', 'searchPaths' ], debounce(value => {
+		appcd.config.watch('titanium.sdk.searchPaths', debounce(value => {
 			options.sdk.searchPaths = value;
 			this.detectEngine.paths = sdk.getPaths();
 		}));
@@ -69,5 +68,30 @@ export default class SDKListService extends DataServiceDispatcher {
 			await this.detectEngine.stop();
 			this.detectEngine = null;
 		}
+	}
+
+	/**
+	 * Finds an SDK by name (or version) or by `latest`.
+	 *
+	 * @param {String} [name='latest'] - The SDK name or version to search for.
+	 * @returns {Object}
+	 */
+	find(name) {
+		let result;
+		if (!name || name === 'latest') {
+			// get the latest installed
+			for (const sdk of this.data) {
+				if (!result || (sdk.manifest && result.manifest && semver.gt(sdk.manifest.version, result.manifest.version))) {
+					result = sdk;
+				}
+			}
+		} else {
+			result = this.data.find(s => s.name === name);
+			if (!result) {
+				// maybe name is a version?
+				result = this.data.find(s => s.manifest?.version === name);
+			}
+		}
+		return result;
 	}
 }

@@ -1,0 +1,7 @@
+{
+	"rules": {
+		"max-depth": "off",
+		"no-loop-func": "off",
+		"promise/always-return": "off"
+	}
+}

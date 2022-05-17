@@ -1,61 +1,42 @@
-// istanbul ignore if
-if (!Error.prepareStackTrace) {
-	require('source-map-support/register');
-}
-
-// import fs from 'fs-extra';
-import gawk from 'gawk';
 import CLIService from './cli/cli-service';
 import ModuleService from './module/module-service';
+import ProjectService from './project/project-service';
 import SDKService from './sdk/sdk-service';
-
-import { debounce, get } from 'appcd-util';
+import { debounce } from 'appcd-util';
 import { modules, options, sdk } from 'titaniumlib';
 
-const cliSvc    = new CLIService();
-const moduleSvc = new ModuleService();
-const sdkSvc    = new SDKService();
+const cliSvc     = new CLIService();
+const moduleSvc  = new ModuleService();
+const projectSvc = new ProjectService();
+const sdkSvc     = new SDKService();
 
 /**
  * Wires up plugin services.
  *
- * @param {Object} cfg - An Appc Daemon config object
  * @returns {Promise}
  */
-export async function activate(cfg) {
+export async function activate() {
 	// set titaniumlib's network settings
-	const { APPCD_NETWORK_CA_FILE, APPCD_NETWORK_PROXY, APPCD_NETWORK_STRICT_SSL } = process.env;
-	const { network } = options;
-	const applySettings = () => {
-		Object.assign(network, cfg.network);
-		if (APPCD_NETWORK_CA_FILE) {
-			network.caFile = APPCD_NETWORK_CA_FILE;
-		}
-		if (APPCD_NETWORK_PROXY) {
-			network.httpProxy = network.httpsProxy = APPCD_NETWORK_PROXY;
-		}
-		if (APPCD_NETWORK_STRICT_SSL !== undefined && APPCD_NETWORK_STRICT_SSL !== 'false') {
-			network.strictSSL = true;
-		}
-	};
-	applySettings();
-	gawk.watch(cfg, [ 'network' ], debounce(applySettings));
+	Object.assign(options.network, appcd.config.get('network'));
+	appcd.config.watch('network', debounce(network => Object.assign(options.network, network)));
 
-	options.searchPaths = get(cfg, 'titanium.searchPaths');
-
-	gawk.watch(cfg, [ 'titanium', 'searchPaths' ], debounce(value => {
+	options.searchPaths = appcd.config.get('titanium.searchPaths');
+	appcd.config.watch('titanium.searchPaths', debounce(value => {
 		options.searchPaths = value;
 		moduleSvc.detectEngine.paths = modules.getPaths();
 		sdkSvc.detectEngine.paths = sdk.getPaths();
 	}));
 
-	await cliSvc.activate(cfg);
+	await cliSvc.activate();
 	appcd.register('/cli', cliSvc);
 
-	await moduleSvc.activate(cfg);
+	await moduleSvc.activate();
 	appcd.register([ '/module', '/modules' ], moduleSvc);
 
-	await sdkSvc.activate(cfg);
+	await projectSvc.activate();
+	appcd.register('/project', projectSvc);
+
+	await sdkSvc.activate();
 	appcd.register('/sdk', sdkSvc);
 }
 
@@ -68,6 +49,7 @@ export async function deactivate() {
 	await Promise.all([
 		cliSvc.deactivate(),
 		moduleSvc.deactivate(),
+		projectSvc.deactivate(),
 		sdkSvc.deactivate()
 	]);
 }
